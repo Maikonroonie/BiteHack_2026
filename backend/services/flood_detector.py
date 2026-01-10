@@ -75,8 +75,12 @@ class FloodDetector:
         mask_after = self._predict_mask(image_after)
         mask_before = self._predict_mask(image_before)
 
-        # 4. Change Detection (Tylko nowa woda)
-        current_flood_mask = mask_after & (~mask_before)
+        # Jeśli piksel jest jaśniejszy niż -15 dB, to nie jest głęboka woda.
+        # To eliminuje fałszywe alarmy na polach i budynkach.
+        physics_mask = image_after < -15.0
+
+        # 4. Change Detection (AI + Fizyka + Brak wody wcześniej)
+        current_flood_mask = mask_after & (~mask_before) & physics_mask
         current_flood_mask = median_filter(current_flood_mask, size=3) # Usuwanie szumu
 
         # 5. Fizyka (Grawitacja + Głębokość)
@@ -85,20 +89,23 @@ class FloodDetector:
 
         # 6. Generowanie GeoJSON
         geojson_current = self._mask_to_geojson(current_flood_mask, bbox, image_after.shape, 
-                                              {"status": "current", "type": "flood", "risk": "high"})
+                                                {"status": "current", "type": "flood", "risk": "high"})
         
         predicted_expansion = future_mask & (~current_flood_mask)
         geojson_future = self._mask_to_geojson(predicted_expansion, bbox, image_after.shape,
-                                             {"status": "forecast", "type": "warning", "risk": "medium"})
+                                               {"status": "forecast", "type": "warning", "risk": "medium"})
 
         all_features = geojson_current["features"] + geojson_future["features"]
+
+        # Zabezpieczenie statystyk (gdyby mapa była pusta)
+        max_depth = float(np.max(depth_map)) if depth_map.size > 0 else 0.0
 
         return {
             "status": "success",
             "stats": {
                 "flooded_area_px": int(np.sum(current_flood_mask)),
-                "max_depth_m": round(float(np.max(depth_map)), 2),
-                "risk_level": "CRITICAL" if np.max(depth_map) > 1.2 else "MODERATE"
+                "max_depth_m": round(max_depth, 2),
+                "risk_level": "CRITICAL" if max_depth > 1.2 else "MODERATE"
             },
             "geojson": {"type": "FeatureCollection", "features": all_features},
             # Kompatybilność z frontendem

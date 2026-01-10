@@ -20,7 +20,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 // Axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 60s dla długich analiz
+  timeout: 300000, // 60s dla długich analiz
   headers: {
     "Content-Type": "application/json",
   },
