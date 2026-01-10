@@ -107,3 +107,59 @@ export interface AppState {
     isAnalyzing: boolean;
     selectedArea: BoundingBox | null;
 }
+
+// ============== PREDICTION / NOWCASTING TYPES ==============
+
+// Prediction Request
+export interface PredictionRequest {
+    bbox: BoundingBox;
+    prediction_hours: number;
+}
+
+// Evacuation Priority
+export interface EvacuationPriority {
+    osm_id: number;
+    name: string | null;
+    building_type: string;
+    lat: number;
+    lon: number;
+    risk_level: 'critical' | 'high' | 'medium' | 'low';
+    flood_probability: number;
+    evacuation_score: number;
+    estimated_time_to_flood_hours: number;
+    people_estimate: number;
+}
+
+// Precipitation Info
+export interface PrecipitationInfo {
+    mean_mm: number;
+    max_mm: number;
+    source: string;
+    hours_analyzed: number;
+    is_simulated: boolean;
+}
+
+// Risk Factors
+export interface RiskFactors {
+    precipitation_contribution: number;
+    terrain_contribution: number;
+    time_factor: number;
+}
+
+// Prediction Response
+export interface PredictionResponse {
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    message: string;
+    timestamp: string;
+    prediction_hours: number;
+    flood_probability: number;
+    risk_level: 'low' | 'moderate' | 'high' | 'critical' | 'unknown';
+    confidence: number;
+    precipitation: PrecipitationInfo | null;
+    risk_factors: RiskFactors | null;
+    risk_zones_geojson: FloodGeoJSON | null;
+    evacuation_priorities: EvacuationPriority[];
+    processing_time_seconds: number;
+    next_update_minutes: number;
+}
+

@@ -10,6 +10,8 @@ import type {
     BuildingsResponse,
     BoundingBox,
     HealthResponse,
+    PredictionRequest,
+    PredictionResponse,
 } from '../types';
 
 // Base URL - z Vite proxy lub env
@@ -64,6 +66,24 @@ export async function getDemoData(): Promise<AnalysisResponse> {
     return response.data;
 }
 
+// ============== PREDICTION / NOWCASTING API ==============
+
+/**
+ * 🎯 Predykcja powodzi w czasie rzeczywistym (AI)
+ */
+export async function predictFlood(request: PredictionRequest): Promise<PredictionResponse> {
+    const response = await api.post<PredictionResponse>('/api/predict', request);
+    return response.data;
+}
+
+/**
+ * Demo predykcji dla Wrocławia
+ */
+export async function getPredictionDemo(): Promise<PredictionResponse> {
+    const response = await api.get<PredictionResponse>('/api/predict/demo');
+    return response.data;
+}
+
 /**
  * Helper do formatowania dat dla API
  */
@@ -87,3 +107,4 @@ export function createBboxFromBounds(
 }
 
 export default api;
+

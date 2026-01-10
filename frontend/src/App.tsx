@@ -8,10 +8,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './components/Layout/Header';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Dashboard } from './components/Dashboard/Dashboard';
+import { EvacuationPanel } from './components/Dashboard/EvacuationPanel';
 import { Loading } from './components/UI/Loading';
 import { useFloodData } from './hooks/useFloodData';
-import { checkHealth } from './services/api';
-import type { AnalysisRequest, BoundingBox, FloodGeoJSON } from './types';
+import { checkHealth, predictFlood, getPredictionDemo } from './services/api';
+import type { AnalysisRequest, BoundingBox, FloodGeoJSON, PredictionRequest, PredictionResponse } from './types';
 
 // Dynamically import map components to avoid SSR issues
 import { MapContainer, TileLayer, GeoJSON, FeatureGroup, Rectangle, useMapEvents } from 'react-leaflet';
@@ -81,10 +82,28 @@ function RectangleSelector({ onSelect }: { onSelect: (bbox: BoundingBox) => void
     );
 }
 
-// Flood layer component
-function FloodOverlay({ data }: { data: FloodGeoJSON }) {
+// Flood layer component with risk level colors
+function FloodOverlay({ data, isPrediction }: { data: FloodGeoJSON; isPrediction?: boolean }) {
     const getStyle = (feature: any) => {
         const probability = feature?.properties?.flood_probability || 0;
+        const riskLevel = feature?.properties?.risk_level;
+
+        // Use distinct colors for prediction mode
+        if (isPrediction && riskLevel) {
+            const colors: Record<string, string> = {
+                critical: '#ef4444',
+                high: '#f97316',
+                moderate: '#eab308',
+                low: '#22c55e',
+            };
+            return {
+                fillColor: colors[riskLevel] || `hsl(${(1 - probability) * 200}, 80%, 50%)`,
+                fillOpacity: 0.5 + probability * 0.3,
+                color: 'rgba(255, 255, 255, 0.6)',
+                weight: 1,
+            };
+        }
+
         const hue = (1 - probability) * 200;
         return {
             fillColor: `hsl(${hue}, 80%, 50%)`,
@@ -104,6 +123,7 @@ function FloodOverlay({ data }: { data: FloodGeoJSON }) {
                 layer.bindPopup(`
           <div style="font-family: monospace;">
             <strong>Flood Risk: ${((props.flood_probability || 0) * 100).toFixed(0)}%</strong>
+            ${props.risk_level ? `<br/>Level: ${props.risk_level.toUpperCase()}` : ''}
           </div>
         `);
             }}
@@ -115,6 +135,11 @@ export default function App() {
     const [isConnected, setIsConnected] = useState(false);
     const [selectedBbox, setSelectedBbox] = useState<BoundingBox | null>(null);
     const { result, buildings, isLoading, error, runAnalysis, loadDemoData, clearResults } = useFloodData();
+
+    // Prediction state
+    const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
+    const [isPredicting, setIsPredicting] = useState(false);
+    const [predictionError, setPredictionError] = useState<string | null>(null);
 
     // Check backend connection
     useEffect(() => {
@@ -136,15 +161,33 @@ export default function App() {
     const handleAnalyze = useCallback(async (request: AnalysisRequest) => {
         try {
             await runAnalysis(request);
+            setPrediction(null); // Clear prediction when running analysis
         } catch (err) {
             console.error('Analysis failed:', err);
         }
     }, [runAnalysis]);
 
+    // Handle prediction request
+    const handlePredict = useCallback(async (request: PredictionRequest) => {
+        setIsPredicting(true);
+        setPredictionError(null);
+        try {
+            const result = await predictFlood(request);
+            setPrediction(result);
+            clearResults(); // Clear analysis results
+        } catch (err: any) {
+            console.error('Prediction failed:', err);
+            setPredictionError(err.message || 'Prediction failed');
+        } finally {
+            setIsPredicting(false);
+        }
+    }, [clearResults]);
+
     // Handle demo data load
     const handleLoadDemo = useCallback(async () => {
         try {
             await loadDemoData();
+            setPrediction(null);
             // Set demo bbox for Wrocław
             setSelectedBbox({
                 min_lon: 17.0,
@@ -157,16 +200,42 @@ export default function App() {
         }
     }, [loadDemoData]);
 
+    // Handle prediction demo load
+    const handleLoadPredictionDemo = useCallback(async () => {
+        setIsPredicting(true);
+        try {
+            const result = await getPredictionDemo();
+            setPrediction(result);
+            clearResults();
+            setSelectedBbox({
+                min_lon: 17.0,
+                min_lat: 51.08,
+                max_lon: 17.1,
+                max_lat: 51.13,
+            });
+        } catch (err) {
+            console.error('Failed to load prediction demo:', err);
+        } finally {
+            setIsPredicting(false);
+        }
+    }, [clearResults]);
+
+    // Determine which GeoJSON to show
+    const displayGeoJSON = prediction?.risk_zones_geojson || result?.flood_geojson;
+    const isPredictionMode = !!prediction;
+
     return (
         <div className="min-h-screen bg-orbital-bg bg-grid">
             {/* Header */}
-            <Header isConnected={isConnected} isAnalyzing={isLoading} />
+            <Header isConnected={isConnected} isAnalyzing={isLoading || isPredicting} />
 
             {/* Sidebar */}
             <Sidebar
                 onAnalyze={handleAnalyze}
+                onPredict={handlePredict}
                 onLoadDemo={handleLoadDemo}
-                isLoading={isLoading}
+                onLoadPredictionDemo={handleLoadPredictionDemo}
+                isLoading={isLoading || isPredicting}
                 selectedBbox={selectedBbox}
             />
 
@@ -212,9 +281,9 @@ export default function App() {
                                     />
                                 )}
 
-                                {/* Flood overlay */}
-                                {result?.flood_geojson && (
-                                    <FloodOverlay data={result.flood_geojson} />
+                                {/* Flood/Prediction overlay */}
+                                {displayGeoJSON && (
+                                    <FloodOverlay data={displayGeoJSON} isPrediction={isPredictionMode} />
                                 )}
                             </MapContainer>
 
@@ -225,6 +294,25 @@ export default function App() {
                                     {' + drag to select area'}
                                 </p>
                             </div>
+
+                            {/* Prediction mode indicator */}
+                            {isPredictionMode && prediction && (
+                                <div className="absolute top-4 left-4 glass px-4 py-2 rounded-lg z-[1000] flex items-center gap-2">
+                                    <span className="text-lg">🎯</span>
+                                    <div>
+                                        <div className="text-sm font-semibold text-white">
+                                            Predykcja za {prediction.prediction_hours}h
+                                        </div>
+                                        <div className={`text-xs font-bold ${prediction.risk_level === 'critical' ? 'text-red-400' :
+                                                prediction.risk_level === 'high' ? 'text-orange-400' :
+                                                    prediction.risk_level === 'moderate' ? 'text-yellow-400' :
+                                                        'text-green-400'
+                                            }`}>
+                                            {Math.round(prediction.flood_probability * 100)}% ryzyko • {prediction.risk_level.toUpperCase()}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
 
@@ -236,25 +324,38 @@ export default function App() {
                         transition={{ delay: 0.3 }}
                     >
                         <div className="space-y-6">
-                            {/* Title */}
+                            {/* Title based on mode */}
                             <div>
-                                <h2 className="text-xl font-semibold text-white">Analysis Results</h2>
-                                <p className="text-sm text-gray-500">Flood detection statistics</p>
+                                <h2 className="text-xl font-semibold text-white">
+                                    {isPredictionMode ? '🎯 AI Prediction' : 'Analysis Results'}
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    {isPredictionMode
+                                        ? 'Real-time flood nowcasting'
+                                        : 'Flood detection statistics'}
+                                </p>
                             </div>
 
-                            {/* Dashboard */}
-                            <Dashboard result={result} isLoading={isLoading} />
+                            {/* Show Evacuation Panel for predictions */}
+                            {(isPredictionMode || isPredicting) && (
+                                <EvacuationPanel prediction={prediction} isLoading={isPredicting} />
+                            )}
+
+                            {/* Show Dashboard for analysis */}
+                            {!isPredictionMode && !isPredicting && (
+                                <Dashboard result={result} isLoading={isLoading} />
+                            )}
 
                             {/* Error display */}
                             <AnimatePresence>
-                                {error && (
+                                {(error || predictionError) && (
                                     <motion.div
                                         className="p-4 bg-cyber-red/10 border border-cyber-red/30 rounded-lg"
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
                                     >
-                                        <p className="text-cyber-red text-sm">{error}</p>
+                                        <p className="text-cyber-red text-sm">{error || predictionError}</p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -281,3 +382,4 @@ export default function App() {
         </div>
     );
 }
+
