@@ -5,7 +5,7 @@ Główne endpointy do analizy i PREDYKCJI powodzi
 
 import time
 from datetime import datetime
-from backend.services import flood_detector
+from services import flood_detector
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 
