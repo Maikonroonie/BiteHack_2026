@@ -124,3 +124,114 @@ class HealthResponse(BaseModel):
     services: dict
 
 
+
+
+# ============== NOWCASTING / PREDICTION SCHEMAS ==============
+
+class PredictionRequest(BaseModel):
+    """Request do predykcji powodzi w czasie rzeczywistym"""
+    bbox: BoundingBox
+    prediction_hours: int = Field(
+        default=6, 
+        ge=1, 
+        le=24, 
+        description="Za ile godzin przewidywać (1-24)"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "bbox": {
+                    "min_lon": 17.0,
+                    "min_lat": 51.0,
+                    "max_lon": 17.1,
+                    "max_lat": 51.1
+                },
+                "prediction_hours": 6
+            }
+        }
+
+
+class EvacuationPriority(BaseModel):
+    """Priorytet ewakuacji dla budynku"""
+    osm_id: int
+    name: Optional[str] = None
+    building_type: str
+    lat: float
+    lon: float
+    risk_level: str = Field(description="critical / high / medium / low")
+    flood_probability: float = Field(ge=0, le=1)
+    evacuation_score: float = Field(ge=0, le=1, description="Wyższy = pilniejsza ewakuacja")
+    estimated_time_to_flood_hours: float
+    people_estimate: int = Field(description="Szacunkowa liczba osób do ewakuacji")
+
+
+class PrecipitationInfo(BaseModel):
+    """Informacje o opadach"""
+    mean_mm: float
+    max_mm: float
+    source: str
+    hours_analyzed: int
+    is_simulated: bool = False
+
+
+class RiskFactors(BaseModel):
+    """Czynniki wpływające na ryzyko"""
+    precipitation_contribution: float
+    terrain_contribution: float
+    time_factor: float
+
+
+class PredictionResponse(BaseModel):
+    """Response z predykcją powodzi"""
+    status: AnalysisStatus
+    message: str
+    timestamp: str
+    prediction_hours: int
+    
+    # Główne wyniki
+    flood_probability: float = Field(ge=0, le=1, description="0-1 prawdopodobieństwo zalania")
+    risk_level: str = Field(description="low / moderate / high / critical")
+    confidence: float = Field(ge=0, le=1, description="Pewność predykcji")
+    
+    # Dane wejściowe
+    precipitation: Optional[PrecipitationInfo] = None
+    risk_factors: Optional[RiskFactors] = None
+    
+    # Wyniki przestrzenne
+    risk_zones_geojson: Optional[dict] = None
+    evacuation_priorities: List[EvacuationPriority] = []
+    
+    # Meta
+    processing_time_seconds: float = 0.0
+    next_update_minutes: int = 30
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "completed",
+                "message": "Predykcja zakończona",
+                "timestamp": "2026-01-10T17:00:00Z",
+                "prediction_hours": 6,
+                "flood_probability": 0.65,
+                "risk_level": "high",
+                "confidence": 0.82,
+                "evacuation_priorities": [
+                    {
+                        "osm_id": 12345,
+                        "name": "Szpital Miejski",
+                        "building_type": "hospital",
+                        "lat": 51.1,
+                        "lon": 17.05,
+                        "risk_level": "critical",
+                        "flood_probability": 0.78,
+                        "evacuation_score": 0.78,
+                        "estimated_time_to_flood_hours": 4.5,
+                        "people_estimate": 350
+                    }
+                ],
+                "processing_time_seconds": 1.2,
+                "next_update_minutes": 30
+            }
+        }
+
