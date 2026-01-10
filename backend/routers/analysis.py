@@ -57,12 +57,13 @@ async def analyze_flood(request: AnalysisRequest):
     
     try:
         # 1. Przetwarzanie SAR (Dane satelitarne)
+        # Zmień to:
         sar_data = await sar_processor.process_sar(
             bbox=request.bbox.to_list(),
-            date_before=request.date_before,
-            date_after=request.date_after,
-            polarization=request.polarization
+            date_after=request.date_after
+            # Usuwamy date_before i polarization, bo Twoja klasa ich nie obsługuje wprost
         )
+        gee_data = await gee_service.get_terrain_and_rain(request.bbox.to_list())
         
         # Opcjonalnie: Pobranie DEM z GEE dla dokładnej głębokości
         # terrain_dem = await gee_service.get_terrain_elevation(request.bbox.to_list())
@@ -86,7 +87,9 @@ async def analyze_flood(request: AnalysisRequest):
         economic_stats = damage_service.calculate_losses(flooded_buildings)
         
         processing_time = time.time() - start_time
-        
+        stats = flood_result["stats"]
+        stats.avg_elevation_m = gee_data.get("avg_elevation", 0)
+        stats.current_rainfall_mm_h = gee_data.get("current_rainfall", 0)
         # Budowanie finalnej odpowiedzi
         return AnalysisResponse(
             status=AnalysisStatus.COMPLETED,
@@ -126,9 +129,7 @@ async def get_flood_mask_only(request: AnalysisRequest):
     try:
         sar_data = await sar_processor.process_sar(
             bbox=request.bbox.to_list(),
-            date_before=request.date_before,
-            date_after=request.date_after,
-            polarization=request.polarization
+            date_after=request.date_after
         )
         flood_result = await flood_detector.detect_flood(sar_data)
         
