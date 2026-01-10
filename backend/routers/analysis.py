@@ -1,6 +1,6 @@
 """
 CrisisEye - Analysis Router
-Główne endpointy do analizy i PREDYKCJI powodzi - Wersja Hackathon MVP
+Główne endpointy do analizy i predykcji powodzi 
 """
 
 import time
@@ -16,17 +16,15 @@ from models.schemas import (
     BuildingsResponse,
     FloodMaskResponse,
     FloodPixelStats,
-    # Nowe schematy predykcji
     PredictionRequest,
     PredictionResponse,
     EvacuationPriority,
     PrecipitationInfo,
     RiskFactors
 )
-from services.flood_detector import FloodPredictor
+from services.flood_detector import FloodDetector, FloodPredictor
 from services.osm_service import OSMService
 from services.sar_processor import SARProcessor
-# from services.damage import DamageService  <-- Wyłączone dla wydajności
 from services.gee_service import gee_service
 from services.precipitation_service import precipitation_service
 from services.terrain_service import terrain_service
@@ -34,22 +32,16 @@ from services.terrain_service import terrain_service
 router = APIRouter()
 
 # Inicjalizacja serwisów
+flood_detector = FloodDetector()
 flood_predictor = FloodPredictor()
 osm_service = OSMService()
 sar_processor = SARProcessor()
-# damage_service = DamageService()
 
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_flood(request: AnalysisRequest):
     """
-    Główny endpoint analizy powodzi (Pipeline v2.1).
-    
-    Pipeline:
-    1. Pobierz dane SAR (przed i po) oraz DEM (wysokość terenu)
-    2. Wykonaj change detection i klasyfikację RandomForest
-    3. Pobierz infrastrukturę z OSM i Microsoft Footprints
-    4. Wykonaj Spatial Join (budynki vs maska powodzi)
-    5. Oblicz statystyki (straty liczone po stronie Frontendu)
+    Główny endpoint analizy powodzi.
+    ZMODYFIKOWANY: Wyłączono analizę budynków, skupiamy się na fizyce terenu.
     """
     start_time = time.time()
     
@@ -63,20 +55,13 @@ async def analyze_flood(request: AnalysisRequest):
         # Pobierz dane pomocnicze z GEE
         gee_data = await gee_service.get_terrain_and_rain(request.bbox.to_list())
         
-        # 2. Detekcja powodzi (Model AI - K-Means + Fizyka)
+        # 2. Detekcja powodzi (Model AI + Fizyka Grawitacji)
         flood_result = await flood_detector.detect_flood(sar_data)
         
-        # 3. Pobierz budynki (OSM Service)
-        buildings = await osm_service.get_buildings(request.bbox.to_list())
+        # Budynki wywalamny na razie
+        flooded_buildings = [] 
         
-        # 4. Sprawdź które budynki są zalane (Analiza przestrzenna)
-        flooded_buildings = flood_detector.check_buildings_flooding(
-            buildings, 
-            flood_result["mask"],
-            request.bbox.to_list()
-        )
-        
-        # 5. Przygotuj statystyki
+        # 4. Przygotuj statystyki
         processing_time = time.time() - start_time
         stats = flood_result["stats"]
         
@@ -87,11 +72,11 @@ async def analyze_flood(request: AnalysisRequest):
         # Budowanie finalnej odpowiedzi
         return AnalysisResponse(
             status=AnalysisStatus.COMPLETED,
-            message="Analiza zakończona pomyślnie",
+            message="Analiza terenu zakończona (Fizyka cieczy aktywna)",
             stats=flood_result["stats"],
             flood_geojson=flood_result["geojson"],
-            buildings_affected=len(flooded_buildings),
-            estimated_loss_pln=0.0, # Frontend przelicza to dynamicznie
+            buildings_affected=0, # Wyłączone
+            estimated_loss_pln=0.0,
             processing_time_seconds=round(processing_time, 2)
         )
         
@@ -111,7 +96,7 @@ async def get_buildings_only(request: BuildingsRequest):
         buildings = await osm_service.get_buildings(request.bbox.to_list())
         return BuildingsResponse(
             total_count=len(buildings),
-            flooded_count=0, # Wymaga pełnej analizy do wypełnienia
+            flooded_count=0,
             buildings=buildings
         )
     except Exception as e:
@@ -171,37 +156,24 @@ async def get_demo_data():
     )
 
 
-#NOWCASTING / PREDICTION ENDPOINTS
-
 @router.post("/predict", response_model=PredictionResponse)
 async def predict_flood(request: PredictionRequest):
-    """
-    GŁÓWNY ENDPOINT AI - Predykcja powodzi w czasie rzeczywistym.
-    
-    Pipeline:
-    1. Pobierz aktualne opady z GPM (satelita)
-    2. Pobierz dane terenu z DEM
-    3. Uruchom model ML do predykcji ryzyka
-    4. Pobierz budynki i oblicz priorytety ewakuacji
-    """
+    """GŁÓWNY ENDPOINT AI - Predykcja powodzi w czasie rzeczywistym."""
     start_time = time.time()
     
     try:
         bbox = request.bbox.to_list()
         
-        # 1. Pobierz aktualne opady (GPM satellite)
         precip_data = await precipitation_service.get_current_precipitation(
             bbox=bbox,
             hours_back=3
         )
         
-        # 2. Pobierz dane terenu (DEM)
         terrain_data = await terrain_service.get_elevation(
             bbox=bbox,
             resolution=50
         )
         
-        # 3. Uruchom model predykcji AI
         prediction = await flood_predictor.predict_flood_risk(
             bbox=bbox,
             precipitation_data=precip_data,
@@ -209,17 +181,11 @@ async def predict_flood(request: PredictionRequest):
             prediction_hours=request.prediction_hours
         )
         
-        # 4. Pobierz budynki i oblicz priorytety ewakuacji
-        buildings = await osm_service.get_buildings(bbox)
-        evacuation_priorities = flood_predictor.calculate_evacuation_priorities(
-            buildings=buildings,
-            flood_probability=prediction["flood_probability"],
-            prediction_hours=request.prediction_hours
-        )
+        # Budynki w predykcji zostawiamy póki co (albo zwracamy puste jeśli totalnie bez budynków)
+        # Tu zwracamy puste dla spójności
+        evacuation_priorities = [] 
         
-        # 5. Przygotuj response
         processing_time = time.time() - start_time
-        
         precip_mm = precip_data.get("precipitation_mm", {})
         
         return PredictionResponse(
@@ -243,9 +209,7 @@ async def predict_flood(request: PredictionRequest):
                 time_factor=prediction["factors"]["time_factor"]
             ),
             risk_zones_geojson=prediction["risk_zones_geojson"],
-            evacuation_priorities=[
-                EvacuationPriority(**ep) for ep in evacuation_priorities
-            ],
+            evacuation_priorities=[], # Pusta lista
             processing_time_seconds=round(processing_time, 2),
             next_update_minutes=30
         )
@@ -263,13 +227,9 @@ async def predict_flood(request: PredictionRequest):
             processing_time_seconds=time.time() - start_time
         )
 
-
 @router.get("/predict/demo")
 async def get_prediction_demo():
-    """
-    Demo predykcji dla Wrocławia.
-    Pokazuje jak wygląda output dla Szefa Sztabu.
-    """
+    """Demo endpoint."""
     return PredictionResponse(
         status=AnalysisStatus.COMPLETED,
         message="Demo predykcji - Wrocław za 6 godzin",
@@ -278,77 +238,7 @@ async def get_prediction_demo():
         flood_probability=0.72,
         risk_level="high",
         confidence=0.85,
-        precipitation=PrecipitationInfo(
-            mean_mm=45.2,
-            max_mm=78.5,
-            source="NASA_GPM_IMERG",
-            hours_analyzed=3,
-            is_simulated=False
-        ),
-        risk_factors=RiskFactors(
-            precipitation_contribution=0.68,
-            terrain_contribution=0.45,
-            time_factor=1.05
-        ),
-        risk_zones_geojson={
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": {"flood_probability": 0.85, "risk_level": "critical"},
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [[[17.02, 51.10], [17.04, 51.10], [17.04, 51.12], [17.02, 51.12], [17.02, 51.10]]]
-                    }
-                },
-                {
-                    "type": "Feature",
-                    "properties": {"flood_probability": 0.65, "risk_level": "high"},
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [[[17.04, 51.10], [17.06, 51.10], [17.06, 51.12], [17.04, 51.12], [17.04, 51.10]]]
-                    }
-                }
-            ]
-        },
-        evacuation_priorities=[
-            EvacuationPriority(
-                osm_id=12345,
-                name="Szpital Uniwersytecki",
-                building_type="hospital",
-                lat=51.11,
-                lon=17.03,
-                risk_level="critical",
-                flood_probability=0.88,
-                evacuation_score=0.88,
-                estimated_time_to_flood_hours=3.5,
-                people_estimate=450
-            ),
-            EvacuationPriority(
-                osm_id=23456,
-                name="Szkoła Podstawowa nr 12",
-                building_type="school",
-                lat=51.105,
-                lon=17.025,
-                risk_level="high",
-                flood_probability=0.72,
-                evacuation_score=0.68,
-                estimated_time_to_flood_hours=4.8,
-                people_estimate=320
-            ),
-            EvacuationPriority(
-                osm_id=34567,
-                name="Blok mieszkalny",
-                building_type="apartments",
-                lat=51.108,
-                lon=17.035,
-                risk_level="high",
-                flood_probability=0.65,
-                evacuation_score=0.46,
-                estimated_time_to_flood_hours=5.2,
-                people_estimate=180
-            )
-        ],
+        evacuation_priorities=[], # Puste
         processing_time_seconds=0.15,
         next_update_minutes=30
     )
