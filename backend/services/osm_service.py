@@ -22,7 +22,7 @@ class OSMService:
     
     async def get_buildings(self, bbox: List[float]) -> List[BuildingInfo]:
         """
-        Pobiera budynki z OSM dla zadanego obszaru.
+        Pobiera budynki z OSM dla zadanego przez użytkownika obszaru.
         
         Args:
             bbox: Bounding box [minLon, minLat, maxLon, maxLat]

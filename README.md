@@ -74,7 +74,7 @@ crisiseye/
 
 ## 🎯 Funkcjonalności
 
-- **📡 Analiza SAR** - Przetwarzanie danych radarowych Sentinel-1
+- **📡 Analiza SAR** - Przetwarzanie danych radarowych z satelity Sentinel-1
 - **🌊 Detekcja powodzi** - RandomForest model do wykrywania zalań
 - **🏠 Analiza budynków** - Integracja z OSM dla oceny strat
 - **🗺️ Interaktywna mapa** - Wizualizacja z react-leaflet
