@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Orbital Command Theme - Global Styles */
+:root {
+  --orbital-bg: #0a0a0f;
+  --orbital-surface: #12121a;
+  --orbital-card: #1a1a24;
+  --orbital-border: #2a2a3a;
+  --cyber-cyan: #00d4ff;
+  --cyber-red: #ff3b3b;
+  --cyber-purple: #7c3aed;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--orbital-bg);
+  color: #e5e5e5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--orbital-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--orbital-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cyber-cyan);
+}
+
+/* Leaflet overrides for dark theme */
+.leaflet-container {
+  background-color: var(--orbital-surface) !important;
+  border-radius: 8px;
+}
+
+.leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--orbital-border) !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: var(--orbital-card) !important;
+  color: var(--cyber-cyan) !important;
+  border-bottom-color: var(--orbital-border) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: var(--orbital-surface) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background-color: var(--orbital-card) !important;
+  color: #e5e5e5 !important;
+  border: 1px solid var(--orbital-border);
+  border-radius: 8px;
+}
+
+.leaflet-popup-tip {
+  background-color: var(--orbital-card) !important;
+}
+
+/* Glassmorphism utilities */
+@layer components {
+  .glass {
+    background: rgba(26, 26, 36, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(42, 42, 58, 0.5);
+  }
+
+  .glass-dark {
+    background: rgba(10, 10, 15, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(42, 42, 58, 0.3);
+  }
+
+  .glow-border {
+    box-shadow: 0 0 0 1px var(--cyber-cyan),
+                0 0 20px rgba(0, 212, 255, 0.2);
+  }
+
+  .glow-border-red {
+    box-shadow: 0 0 0 1px var(--cyber-red),
+                0 0 20px rgba(255, 59, 59, 0.2);
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply px-4 py-2 bg-cyber-cyan text-orbital-bg font-medium rounded-lg
+           hover:bg-cyber-cyan-dark transition-all duration-200
+           shadow-glow-cyan hover:shadow-lg;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-cyber-red text-white font-medium rounded-lg
+           hover:bg-cyber-red-dark transition-all duration-200
+           shadow-glow-red hover:shadow-lg;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-orbital-card text-gray-200 font-medium rounded-lg
+           border border-orbital-border hover:border-cyber-cyan
+           transition-all duration-200;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-orbital-card border border-orbital-border rounded-xl p-4;
+  }
+
+  .card-glow {
+    @apply card shadow-glow-cyan;
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-4 py-2 bg-orbital-surface border border-orbital-border
+           rounded-lg text-gray-200 placeholder-gray-500
+           focus:outline-none focus:border-cyber-cyan focus:ring-1 focus:ring-cyber-cyan
+           transition-all duration-200;
+  }
+
+  /* Scanning animation */
+  .scan-line {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scan-line::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyber-cyan), transparent);
+    animation: scan 2s linear infinite;
+  }
+
+  /* Pulse animation for alerts */
+  .pulse-alert {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 5px var(--cyber-red);
+    }
+    50% {
+      box-shadow: 0 0 20px var(--cyber-red), 0 0 40px var(--cyber-red);
+    }
+  }
+}
+
+/* Grid pattern background */
+.bg-grid {
+  background-image: 
+    linear-gradient(rgba(42, 42, 58, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 42, 58, 0.3) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Stat number styling */
+.stat-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--cyber-cyan), var(--cyber-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

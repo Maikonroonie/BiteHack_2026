@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+.env.*.local
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Model cache (generated at runtime)
+models_cache/
+
+# Credentials (NEVER commit!)
+credentials/
+*.json
+!package.json
+!tsconfig.json
+!tsconfig.node.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Coverage
+coverage/
+.nyc_output/
