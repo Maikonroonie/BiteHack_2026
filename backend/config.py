@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # Google Earth Engine
-    gee_project_id: str = ""
+    gee_project_id: str = "natural-cistern-305412"
     google_application_credentials: str = ""
     
     # API Settings
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     flood_threshold: float = -15.0  # dB threshold dla detekcji wody
     
     # Model paths
-    model_cache_dir: str = "./models_cache"
+    app_model_cache_dir: str = "./models_cache"
     
     class Config:
         env_file = ".env"

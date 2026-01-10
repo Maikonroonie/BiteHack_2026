@@ -4,7 +4,7 @@ Modele request/response dla API
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List,Dict
 from datetime import date
 from enum import Enum
 
@@ -52,13 +52,13 @@ class AnalysisRequest(BaseModel):
 
 
 class FloodPixelStats(BaseModel):
-    """Statystyki pikseli powodzi"""
     total_pixels: int
     flooded_pixels: int
     flood_percentage: float
     area_km2: float
     flooded_area_km2: float
-
+    current_rainfall_mm_h: Optional[float] = 0.0  # Dane z GPM
+    avg_elevation_m: Optional[float] = 0.0        # Dane z SRTM
 
 class BuildingInfo(BaseModel):
     """Informacje o budynku z OSM"""
@@ -91,12 +91,12 @@ class FloodMaskResponse(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
-    """Główna odpowiedź z analizy"""
     status: AnalysisStatus
     message: str
     stats: Optional[FloodPixelStats] = None
     flood_geojson: Optional[dict] = None
     buildings_affected: int = 0
+    estimated_loss_pln: float = 0.0  # <--- DODAJ TĘ LINIĘ
     processing_time_seconds: float = 0.0
     
     class Config:
@@ -122,3 +122,5 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     services: dict
+
+
