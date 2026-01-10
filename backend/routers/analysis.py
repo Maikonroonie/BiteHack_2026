@@ -27,7 +27,7 @@ from models.schemas import (
 from services.flood_detector import FloodPredictor
 from services.osm_service import OSMService
 from services.sar_processor import SARProcessor
-from services.damage import DamageService
+#from services.damage import DamageService
 from services.gee_service import gee_service
 from services.precipitation_service import precipitation_service
 from services.terrain_service import terrain_service
@@ -38,7 +38,7 @@ router = APIRouter()
 flood_predictor = FloodPredictor()
 osm_service = OSMService()
 sar_processor = SARProcessor()
-damage_service = DamageService()
+#damage_service = DamageService()
 
 
 @router.post("/analyze", response_model=AnalysisResponse)

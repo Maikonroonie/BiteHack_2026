@@ -7,7 +7,7 @@ pydantic-settings==2.1.0
 # SAR & Raster Processing (Microsoft & Local)
 pystac-client>=0.7.5
 planetary-computer>=1.0.0
-rioxarray>=0.15.0
+rioxarray>=0.15.0   
 rasterio==1.3.9
 xarray==2024.1.0
 numpy==1.26.3
