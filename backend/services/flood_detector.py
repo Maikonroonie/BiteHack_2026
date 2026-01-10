@@ -232,28 +232,20 @@ class FloodDetector:
             "features": features
         }
     
-    def check_buildings_flooding(
-        self, 
-        buildings: List[BuildingInfo], 
-        flood_mask: np.ndarray
-    ) -> List[BuildingInfo]:
-        """
-        Sprawdza które budynki są w obszarze zalanym.
-        
-        Args:
-            buildings: Lista budynków z OSM
-            flood_mask: Binarna maska powodzi
-            
-        Returns:
-            Lista budynków z ustawionym is_flooded
-        """
+    def check_buildings_flooding(self, buildings: List[BuildingInfo], flood_mask: np.ndarray, bbox: List[float]) -> List[BuildingInfo]:
+        """Sprawdza zalanie budynków na podstawie realnej maski z modelu AI."""
         flooded = []
-        for building in buildings:
-            # W prawdziwej implementacji sprawdzilibyśmy współrzędne
-            # Dla hackathonu - losowa symulacja
-            if np.random.random() < 0.15:  # 15% szans na zalanie
-                building.is_flooded = True
-                building.flood_probability = round(np.random.uniform(0.5, 1.0), 2)
-                flooded.append(building)
-        
+        rows, cols = flood_mask.shape
+        min_lon, min_lat, max_lon, max_lat = bbox
+
+        for b in buildings:
+            # Mapowanie współrzędnych lat/lon na indeksy macierzy maski
+            col = int((b.lon - min_lon) / (max_lon - min_lon) * cols)
+            row = int((max_lat - b.lat) / (max_lat - min_lat) * rows)
+
+            if 0 <= row < rows and 0 <= col < cols:
+                if flood_mask[row, col] > 0:  # Jeśli piksel w masce to woda
+                    b.is_flooded = True
+                    b.flood_probability = float(flood_mask[row, col])
+                    flooded.append(b)
         return flooded
