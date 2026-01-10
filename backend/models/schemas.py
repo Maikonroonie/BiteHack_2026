@@ -96,7 +96,7 @@ class AnalysisResponse(BaseModel):
     stats: Optional[FloodPixelStats] = None
     flood_geojson: Optional[dict] = None
     buildings_affected: int = 0
-    estimated_loss_pln: float = 0.0  # <--- DODAJ TĘ LINIĘ
+    estimated_loss_pln: float = 0.0 
     processing_time_seconds: float = 0.0
     
     class Config:
@@ -126,7 +126,7 @@ class HealthResponse(BaseModel):
 
 
 
-# ============== NOWCASTING / PREDICTION SCHEMAS ==============
+#NOWCASTING / PREDICTION SCHEMAS 
 
 class PredictionRequest(BaseModel):
     """Request do predykcji powodzi w czasie rzeczywistym"""

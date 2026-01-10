@@ -176,7 +176,7 @@ async def get_demo_data():
     )
 
 
-# ============== NOWCASTING / PREDICTION ENDPOINTS ==============
+#NOWCASTING / PREDICTION ENDPOINTS
 
 @router.post("/predict", response_model=PredictionResponse)
 async def predict_flood(request: PredictionRequest):
