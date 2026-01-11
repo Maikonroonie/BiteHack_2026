@@ -5,7 +5,7 @@ Główne endpointy do analizy i PREDYKCJI powodzi - Wersja Hackathon MVP
 
 import time
 from datetime import datetime
-from services import flood_detector
+from services.flood_detector import flood_detector
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 
@@ -44,69 +44,90 @@ sar_processor = SARProcessor()
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_flood(request: AnalysisRequest):
     """
-    Główny endpoint analizy powodzi (Pipeline v2.1).
+    Main flood analysis endpoint (Pipeline v2.1).
     
     Pipeline:
-    1. Pobierz dane SAR (przed i po) oraz DEM (wysokość terenu)
-    2. Wykonaj change detection i klasyfikację RandomForest
-    3. Pobierz infrastrukturę z OSM i Microsoft Footprints
-    4. Wykonaj Spatial Join (budynki vs maska powodzi)
-    5. Oblicz straty finansowe na podstawie głębokości i stawek
+    1. Fetch SAR data (before and after) + DEM
+    2. Run change detection with K-Means classifier
+    3. Fetch infrastructure from OSM
+    4. Perform spatial join (buildings vs flood mask)
+    5. Calculate financial losses
     """
     start_time = time.time()
     
     try:
-        # 1. Przetwarzanie SAR (Dane satelitarne)
-        # Zmień to:
+        # 1. Process SAR data (satellite imagery)
         sar_data = await sar_processor.process_sar(
             bbox=request.bbox.to_list(),
-            date_after=request.date_after
-            # Usuwamy date_before i polarization, bo Twoja klasa ich nie obsługuje wprost
+            date_after=request.date_after,
+            date_before=request.date_before  # Now using real before date!
         )
+        
+        # Get additional terrain/rain data from GEE
         gee_data = await gee_service.get_terrain_and_rain(request.bbox.to_list())
         
-        # Opcjonalnie: Pobranie DEM z GEE dla dokładnej głębokości
-        # terrain_dem = await gee_service.get_terrain_elevation(request.bbox.to_list())
-        
-        # 2. Detekcja powodzi (Model AI - RandomForest)
+        # 2. Flood detection (AI model)
         flood_result = await flood_detector.detect_flood(sar_data)
         
-        # 3. Pobierz budynki (OSM Service)
+        # 3. Fetch buildings from OSM
         buildings = await osm_service.get_buildings(request.bbox.to_list())
         
-        # 4. Sprawdź które budynki są zalane (Analiza przestrzenna zamiast losowania)
-        # Wykorzystuje mapowanie współrzędnych na piksele maski
+        # 4. Check which buildings are flooded (spatial analysis)
         flooded_buildings = flood_detector.check_buildings_flooding(
             buildings, 
             flood_result["mask"],
             request.bbox.to_list()
         )
         
-        # 5. Oblicz realne straty finansowe
-        # Formuła: powierzchnia * wartość_m2 * współczynnik_zniszczenia
-        economic_stats = damage_service.calculate_losses(flooded_buildings)
+        # 5. Calculate financial losses (inline, no separate service)
+        estimated_loss = calculate_damage_inline(len(flooded_buildings), flood_result["stats"].get("flooded_area_km2", 0))
         
         processing_time = time.time() - start_time
-        stats = flood_result["stats"]
-        stats.avg_elevation_m = gee_data.get("avg_elevation", 0)
-        stats.current_rainfall_mm_h = gee_data.get("current_rainfall", 0)
-        # Budowanie finalnej odpowiedzi
+        
+        # Build stats object
+        raw_stats = flood_result["stats"]
+        stats = FloodPixelStats(
+            total_pixels=raw_stats.get("total_pixels", 0),
+            flooded_pixels=raw_stats.get("flooded_pixels", 0),
+            flood_percentage=raw_stats.get("flood_percentage", 0),
+            area_km2=raw_stats.get("area_km2", 0),
+            flooded_area_km2=raw_stats.get("flooded_area_km2", 0),
+            avg_elevation_m=gee_data.get("avg_elevation", 0),
+            current_rainfall_mm_h=gee_data.get("current_rainfall", 0)
+        )
+        
         return AnalysisResponse(
             status=AnalysisStatus.COMPLETED,
-            message="Analiza zakończona pomyślnie",
-            stats=flood_result["stats"],
+            message="Analiza zakonczona pomyslnie",
+            stats=stats,
             flood_geojson=flood_result["geojson"],
             buildings_affected=len(flooded_buildings),
-            estimated_loss_pln=economic_stats["total_loss_pln"], # Dodane pole finansowe
+            estimated_loss_pln=estimated_loss,
             processing_time_seconds=round(processing_time, 2)
         )
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return AnalysisResponse(
             status=AnalysisStatus.FAILED,
-            message=f"Błąd analizy: {str(e)}",
+            message=f"Blad analizy: {str(e)}",
             processing_time_seconds=time.time() - start_time
         )
+
+
+def calculate_damage_inline(buildings_affected: int, flooded_area_km2: float) -> float:
+    """Simple inline damage calculation."""
+    # Average costs (PLN)
+    AVG_BUILDING_DAMAGE = 150000
+    INFRASTRUCTURE_PER_KM2 = 300000
+    AGRICULTURAL_PER_KM2 = 50000
+    
+    building_damage = buildings_affected * AVG_BUILDING_DAMAGE
+    infrastructure_damage = flooded_area_km2 * INFRASTRUCTURE_PER_KM2
+    agricultural_damage = flooded_area_km2 * 0.3 * AGRICULTURAL_PER_KM2
+    
+    return building_damage + infrastructure_damage + agricultural_damage
 
 
 @router.post("/buildings", response_model=BuildingsResponse)

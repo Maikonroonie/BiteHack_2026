@@ -135,7 +135,11 @@ class PredictionRequest(BaseModel):
         default=6, 
         ge=1, 
         le=24, 
-        description="Za ile godzin przewidywać (1-24)"
+        description="Za ile godzin przewidywac (1-24)"
+    )
+    analysis_date: Optional[date] = Field(
+        default=None,
+        description="Optional date for historical analysis (defaults to today)"
     )
     
     class Config:
@@ -147,7 +151,8 @@ class PredictionRequest(BaseModel):
                     "max_lon": 17.1,
                     "max_lat": 51.1
                 },
-                "prediction_hours": 6
+                "prediction_hours": 6,
+                "analysis_date": "2024-09-15"
             }
         }
 

@@ -139,24 +139,45 @@ class TerrainService:
         resolution: int
     ) -> Dict[str, Any]:
         """
-        Generuje symulowane dane wysokościowe.
+        Generuje symulowane dane wysokosciowe.
         
-        Dla hackathonu - realistyczna symulacja terenu.
+        Deterministyczna symulacja - seed oparty na wspolrzednych.
+        Realistyczne wysokosci dla Polski (gory na poludniu).
         """
-        np.random.seed(42)
+        # Deterministyczny seed oparty na bbox
+        seed = int(abs(bbox[0] * 1000 + bbox[1] * 10000 + bbox[2] * 100 + bbox[3] * 1)) % 10000
+        np.random.seed(seed)
         
-        # Symulacja terenu z gradientem (np. dolina rzeki)
+        lat_center = (bbox[1] + bbox[3]) / 2
+        
+        # Realistyczne wysokosci dla Polski
+        # Klodzko/Sudety: lat ~50.4 = 300-600m
+        # Wroclaw: lat ~51.1 = 100-150m
+        # Warszawa: lat ~52.2 = 80-120m
+        if lat_center < 50.5:  # Sudety
+            base_elevation = 350
+            variation = 150
+        elif lat_center < 51.0:  # Przedgorze
+            base_elevation = 200
+            variation = 80
+        else:  # Niziny
+            base_elevation = 120
+            variation = 40
+        
+        # Symulacja terenu z gradientem
         x = np.linspace(0, 1, resolution)
         y = np.linspace(0, 1, resolution)
         X, Y = np.meshgrid(x, y)
         
-        # Podstawowy teren - dolina w środku
-        base_elevation = 150  # m n.p.m.
-        valley = 30 * np.exp(-((X - 0.5)**2 + (Y - 0.5)**2) / 0.1)
-        hills = 50 * (np.sin(X * 4 * np.pi) * np.cos(Y * 3 * np.pi) + 1) / 2
-        noise = np.random.normal(0, 5, (resolution, resolution))
+        # Dolina w srodku (rzeka)
+        valley = variation * 0.3 * np.exp(-((X - 0.5)**2 + (Y - 0.5)**2) / 0.1)
+        hills = variation * 0.5 * (np.sin(X * 4 * np.pi) * np.cos(Y * 3 * np.pi) + 1) / 2
+        noise = np.random.normal(0, variation * 0.1, (resolution, resolution))
         
         terrain = base_elevation + hills - valley + noise
+        
+        # Nachylenie - wieksze w gorach
+        slope_mean = 3.0 if lat_center > 51.0 else (6.0 if lat_center > 50.5 else 12.0)
         
         return {
             "source": "SIMULATED",
@@ -168,7 +189,7 @@ class TerrainService:
                 "std": round(float(np.std(terrain)), 1)
             },
             "slope_degrees": {
-                "mean": round(np.random.uniform(2, 8), 1)
+                "mean": round(slope_mean + np.random.uniform(-1, 1), 1)
             },
             "grid": terrain.tolist(),
             "resolution": resolution,

@@ -145,16 +145,27 @@ class PrecipitationService:
         """
         Generuje symulowane dane opadowe.
         
-        Dla hackathonu - realistyczna symulacja gdy brak dostępu do GEE.
-        Model oparty na typowych wzorcach opadów w Polsce.
+        Dla hackathonu - deterministyczna symulacja gdy brak dostepu do GEE.
+        Seed oparty na wspolrzednych - te same miejsce = te same wyniki.
         """
-        np.random.seed(int(datetime.now().timestamp()) % 1000)
+        # Deterministyczny seed oparty na bbox (nie na czasie!)
+        seed = int(abs(bbox[0] * 1000 + bbox[1] * 10000 + bbox[2] * 100 + bbox[3] * 1)) % 10000
+        np.random.seed(seed)
         
-        # Symulacja realistycznych opadów (mm)
-        # Lekkie: 0-5mm, Umiarkowane: 5-20mm, Silne: 20-50mm, Intensywne: >50mm
+        # Symulacja realistycznych opadow (mm)
+        # Wyzsze tereny (gory) = wiecej opadow
+        lat_center = (bbox[1] + bbox[3]) / 2
+        
+        # Kłodzko/Sudety: lat ~50.4, wiecej opadow
+        # Wroclaw: lat ~51.1, mniej opadow
+        if lat_center < 50.6:  # Tereny gorskie
+            intensity_probs = [0.2, 0.3, 0.35, 0.15]  # Wiecej intensywnych
+        else:
+            intensity_probs = [0.5, 0.3, 0.15, 0.05]  # Typowe
+        
         intensity = np.random.choice(
             ["light", "moderate", "heavy", "intense"],
-            p=[0.5, 0.3, 0.15, 0.05]
+            p=intensity_probs
         )
         
         intensity_ranges = {
@@ -181,7 +192,7 @@ class PrecipitationService:
             },
             "intensity": intensity,
             "is_simulated": True,
-            "note": "Simulated data - GEE not available"
+            "note": "Deterministyczna symulacja - seed oparty na lokalizacji"
         }
     
     async def get_precipitation_accumulation(
