@@ -78,7 +78,6 @@ crisiseye/
 - **🌊 Detekcja powodzi** - RandomForest model do wykrywania zalań
 - **🏠 Analiza budynków** - Integracja z OSM dla oceny strat
 - **🗺️ Interaktywna mapa** - Wizualizacja z react-leaflet
-- **🎨 Dark Theme** - "Orbital Command" design
 
 ## 🔧 API Endpoints
 
@@ -105,9 +104,6 @@ crisiseye/
 - react-leaflet
 - Framer Motion
 
-## 📄 Licencja
+## Preview
 
-MIT License - Hackathon "AI między orbitami" 2026
-
----
-Made with 🛰️ for flood detection
+![Logo Projektu][assets/1.png]
