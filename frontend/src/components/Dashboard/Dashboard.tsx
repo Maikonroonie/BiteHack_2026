@@ -1,5 +1,5 @@
 /**
- * CrisisEye - Dashboard Component
+ * CrisisEye - Dashboard Component (Polish Version)
  * Panel ze statystykami analizy + STRATY FINANSOWE + RAPORT
  */
 
@@ -209,7 +209,7 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           />
-          <span className="text-gray-400">Analyzing SAR data...</span>
+          <span className="text-gray-400">Trwa analiza danych SAR...</span>
         </div>
       </div>
     );
@@ -220,7 +220,8 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
       <div className="glass rounded-xl p-6 text-center">
         <Droplets className="w-12 h-12 text-gray-600 mx-auto mb-3" />
         <p className="text-gray-400">
-          Wybierz obszar na mapie i kliknij "Run Analysis" lub "Load Demo Data".
+          Wybierz obszar na mapie i kliknij "Rozpocznij analizę" lub "Wczytaj
+          Demo".
         </p>
       </div>
     );
@@ -302,7 +303,7 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
         />
       </div>
 
-      {/* 💰 STRATY FINANSOWE */}
+      {/*  STRATY FINANSOWE */}
       <motion.div
         className="card border-l-4 border-cyber-yellow/50 bg-gradient-to-r from-cyber-yellow/5 to-transparent"
         initial={{ opacity: 0, y: 20 }}
@@ -349,7 +350,7 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
         </div>
       </motion.div>
 
-      {/* 📊 RAPORT */}
+      {/*  RAPORT */}
       <motion.div
         className="card"
         initial={{ opacity: 0, y: 20 }}

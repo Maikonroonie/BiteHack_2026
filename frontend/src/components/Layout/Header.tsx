@@ -63,7 +63,7 @@ export function Header({ isConnected, isAnalyzing }: HeaderProps) {
                 transition={{ duration: 1, repeat: Infinity }}
               />
               <span className="text-sm text-cyber-cyan font-medium">
-                Analyzing...
+                Analizowanie...
               </span>
             </motion.div>
           )}
@@ -80,7 +80,7 @@ export function Header({ isConnected, isAnalyzing }: HeaderProps) {
                 isConnected ? "text-cyber-green" : "text-cyber-red"
               }`}
             >
-              {isConnected ? "Connected" : "Disconnected"}
+              {isConnected ? "Połączono" : "Rozłączono"}
             </span>
           </div>
         </div>

@@ -1,5 +1,5 @@
 /**
- * CrisisEye - Sidebar Component
+ * CrisisEye - Sidebar Component (Polish Version)
  * Panel boczny z formularzem analizy i predykcji
  */
 
@@ -11,10 +11,7 @@ import {
   Radio,
   Play,
   RotateCcw,
-  ChevronRight,
   Layers,
-  Building2,
-  Waves,
   Clock,
   Zap,
 } from "lucide-react";
@@ -43,7 +40,7 @@ export function Sidebar({
   isLoading,
   selectedBbox,
 }: SidebarProps) {
-  const [mode, setMode] = useState<Mode>("prediction"); // Default to prediction
+  const [mode, setMode] = useState<Mode>("prediction");
   const [dateBefore, setDateBefore] = useState("2024-01-01");
   const [dateAfter, setDateAfter] = useState("2024-01-15");
   const [polarization, setPolarization] = useState<"VV" | "VH">("VV");
@@ -54,7 +51,7 @@ export function Sidebar({
     e.preventDefault();
 
     if (!selectedBbox) {
-      alert("Zaznacz obszar na mapie!");
+      alert("Proszę zaznaczyć obszar na mapie (Shift + Przeciągnij).");
       return;
     }
 
@@ -81,7 +78,7 @@ export function Sidebar({
       transition={{ type: "spring", stiffness: 100 }}
     >
       <div className="h-full flex flex-col p-4 overflow-y-auto">
-        {/* Mode Toggle */}
+        {/* Przełącznik Trybu */}
         <div className="mb-4">
           <div className="flex rounded-lg bg-orbital-surface p-1">
             <button
@@ -104,12 +101,12 @@ export function Sidebar({
               }`}
             >
               <Layers className="w-4 h-4" />
-              SAR Analiza
+              Analiza SAR
             </button>
           </div>
         </div>
 
-        {/* Form */}
+        {/* Nagłówek Sekcji */}
         <div className="space-y-6">
           <div className="flex items-center gap-2 text-cyber-cyan">
             {mode === "prediction" ? (
@@ -118,16 +115,18 @@ export function Sidebar({
               <Layers className="w-5 h-5" />
             )}
             <h2 className="font-semibold">
-              {mode === "prediction" ? "Nowcasting AI" : "Flood Analysis"}
+              {mode === "prediction"
+                ? "Prognoza Krótkoterminowa"
+                : "Analiza Satelitarna"}
             </h2>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Bounding Box Display */}
+            {/* Wybór Obszaru */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm text-gray-400">
                 <MapPin className="w-4 h-4" />
-                Selected Area
+                Wybrany obszar
               </label>
               <div className="p-3 bg-orbital-surface rounded-lg border border-orbital-border">
                 {selectedBbox ? (
@@ -142,25 +141,24 @@ export function Sidebar({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic">
-                    Shift + drag na mapie...
+                  <p className="text-xs text-gray-500 italic">
+                    Przytrzymaj SHIFT i zaznacz obszar na mapie...
                   </p>
                 )}
               </div>
             </div>
 
             {mode === "prediction" ? (
-              /* Prediction Mode Controls */
+              /* Tryb Predykcji */
               <>
-                {/* Prediction Hours Slider */}
                 <div className="space-y-2">
                   <label className="flex items-center justify-between text-sm text-gray-400">
                     <span className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
-                      Horyzont predykcji
+                      Horyzont czasowy
                     </span>
                     <span className="text-cyber-cyan font-bold">
-                      {predictionHours}h
+                      +{predictionHours}h
                     </span>
                   </label>
                   <input
@@ -181,13 +179,13 @@ export function Sidebar({
                 </div>
               </>
             ) : (
-              /* Analysis Mode Controls */
+              /* Tryb Analizy SAR */
               <>
-                {/* Date Before */}
+                {/* Data Przed */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm text-gray-400">
                     <Calendar className="w-4 h-4" />
-                    Date Before Flood
+                    Data przed powodzią
                   </label>
                   <input
                     type="date"
@@ -197,11 +195,11 @@ export function Sidebar({
                   />
                 </div>
 
-                {/* Date After */}
+                {/* Data Po */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm text-gray-400">
                     <Calendar className="w-4 h-4" />
-                    Date After Flood
+                    Data w trakcie/po
                   </label>
                   <input
                     type="date"
@@ -211,11 +209,11 @@ export function Sidebar({
                   />
                 </div>
 
-                {/* Polarization */}
+                {/* Polaryzacja */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm text-gray-400">
                     <Radio className="w-4 h-4" />
-                    SAR Polarization
+                    Polaryzacja SAR
                   </label>
                   <div className="flex gap-2">
                     {(["VV", "VH"] as const).map((pol) => (
@@ -237,7 +235,7 @@ export function Sidebar({
               </>
             )}
 
-            {/* Submit Button */}
+            {/* Przycisk Akcji */}
             <motion.button
               type="submit"
               disabled={isLoading || !selectedBbox}
@@ -256,20 +254,22 @@ export function Sidebar({
                       ease: "linear",
                     }}
                   />
-                  {mode === "prediction" ? "Predicting..." : "Analyzing..."}
+                  {mode === "prediction"
+                    ? "Przetwarzanie..."
+                    : "Analizowanie..."}
                 </>
               ) : (
                 <>
                   <Play className="w-5 h-5" />
                   {mode === "prediction"
                     ? `Przewiduj za ${predictionHours}h`
-                    : "Run Analysis"}
+                    : "Rozpocznij analizę"}
                 </>
               )}
             </motion.button>
           </form>
 
-          {/* Demo Button */}
+          {/* Przycisk Demo */}
           <div className="pt-4 border-t border-orbital-border">
             <motion.button
               onClick={
@@ -281,12 +281,12 @@ export function Sidebar({
               whileTap={{ scale: 0.98 }}
             >
               <RotateCcw className="w-4 h-4" />
-              Load Demo Data
+              Wczytaj Demo
             </motion.button>
             <p className="text-xs text-gray-500 mt-2 text-center">
               {mode === "prediction"
-                ? "Wrocław - Predykcja za 6h"
-                : "Wrocław 1997 flood simulation"}
+                ? "Wrocław - Symulacja opadu (Demo)"
+                : "Wrocław 1997 - Dane historyczne"}
             </p>
           </div>
         </div>
