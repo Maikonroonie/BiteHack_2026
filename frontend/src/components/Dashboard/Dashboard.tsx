@@ -143,7 +143,7 @@ function generateReport(result: AnalysisResponse): string {
 ╠══════════════════════════════════════════════════════════════╣
 ║                      REKOMENDACJE                            ║
 ╠══════════════════════════════════════════════════════════════╣
-║ ${stats.flood_percentage > 30 ? '⚠️  WYSOKI POZIOM ZAGROŻENIA - wymagana natychmiastowa ewakuacja' : stats.flood_percentage > 15 ? '⚠️  ŚREDNI POZIOM ZAGROŻENIA - monitorować sytuację' : '✓  NISKI POZIOM ZAGROŻENIA - standardowe procedury'}
+║ ${stats.flood_percentage > 30 ? '[!] WYSOKI POZIOM ZAGROZENIA - wymagana natychmiastowa ewakuacja' : stats.flood_percentage > 15 ? '[!] SREDNI POZIOM ZAGROZENIA - monitorowac sytuacje' : '[OK] NISKI POZIOM ZAGROZENIA - standardowe procedury'}
 ║ 
 ║ Priorytetowe działania:
 ║ 1. Ewakuacja ${Math.ceil(buildings_affected * 0.3)} budynków w strefie wysokiego ryzyka
@@ -151,8 +151,8 @@ function generateReport(result: AnalysisResponse): string {
 ║ 3. Uruchomienie pomp o wydajności min. ${Math.ceil(stats.flooded_area_km2 * 1000)} m³/h
 ╚══════════════════════════════════════════════════════════════╝
 
-Wygenerowano przez CrisisEye 🛰️
-Hackathon "AI między orbitami" 2026
+Wygenerowano przez CrisisEye
+Hackathon "AI miedzy orbitami" 2026
     `.trim();
 }
 
@@ -345,10 +345,10 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
             {/* Alert - poziom zagrożenia */}
             <motion.div
                 className={`p-4 rounded-lg ${stats.flood_percentage > 30
-                        ? 'bg-cyber-red/20 border border-cyber-red/50'
-                        : stats.flood_percentage > 15
-                            ? 'bg-cyber-yellow/20 border border-cyber-yellow/50'
-                            : 'bg-cyber-green/20 border border-cyber-green/50'
+                    ? 'bg-cyber-red/20 border border-cyber-red/50'
+                    : stats.flood_percentage > 15
+                        ? 'bg-cyber-yellow/20 border border-cyber-yellow/50'
+                        : 'bg-cyber-green/20 border border-cyber-green/50'
                     }`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -356,22 +356,22 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
             >
                 <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className={`w-5 h-5 ${stats.flood_percentage > 30
-                            ? 'text-cyber-red'
-                            : stats.flood_percentage > 15
-                                ? 'text-cyber-yellow'
-                                : 'text-cyber-green'
+                        ? 'text-cyber-red'
+                        : stats.flood_percentage > 15
+                            ? 'text-cyber-yellow'
+                            : 'text-cyber-green'
                         }`} />
                     <span className={`font-semibold ${stats.flood_percentage > 30
-                            ? 'text-cyber-red'
-                            : stats.flood_percentage > 15
-                                ? 'text-cyber-yellow'
-                                : 'text-cyber-green'
+                        ? 'text-cyber-red'
+                        : stats.flood_percentage > 15
+                            ? 'text-cyber-yellow'
+                            : 'text-cyber-green'
                         }`}>
                         {stats.flood_percentage > 30
-                            ? '⚠️ WYSOKI POZIOM ZAGROŻENIA'
+                            ? 'WYSOKI POZIOM ZAGROZENIA'
                             : stats.flood_percentage > 15
-                                ? '⚠️ ŚREDNI POZIOM ZAGROŻENIA'
-                                : '✓ NISKI POZIOM ZAGROŻENIA'
+                                ? 'SREDNI POZIOM ZAGROZENIA'
+                                : 'NISKI POZIOM ZAGROZENIA'
                         }
                     </span>
                 </div>

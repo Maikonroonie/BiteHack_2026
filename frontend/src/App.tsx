@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Target } from 'lucide-react';
 import { Header } from './components/Layout/Header';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Dashboard } from './components/Dashboard/Dashboard';
@@ -298,15 +299,15 @@ export default function App() {
                             {/* Prediction mode indicator */}
                             {isPredictionMode && prediction && (
                                 <div className="absolute top-4 left-4 glass px-4 py-2 rounded-lg z-[1000] flex items-center gap-2">
-                                    <span className="text-lg">🎯</span>
+                                    <Target className="w-5 h-5 text-cyber-cyan" />
                                     <div>
                                         <div className="text-sm font-semibold text-white">
                                             Predykcja za {prediction.prediction_hours}h
                                         </div>
                                         <div className={`text-xs font-bold ${prediction.risk_level === 'critical' ? 'text-red-400' :
-                                                prediction.risk_level === 'high' ? 'text-orange-400' :
-                                                    prediction.risk_level === 'moderate' ? 'text-yellow-400' :
-                                                        'text-green-400'
+                                            prediction.risk_level === 'high' ? 'text-orange-400' :
+                                                prediction.risk_level === 'moderate' ? 'text-yellow-400' :
+                                                    'text-green-400'
                                             }`}>
                                             {Math.round(prediction.flood_probability * 100)}% ryzyko • {prediction.risk_level.toUpperCase()}
                                         </div>
@@ -326,8 +327,9 @@ export default function App() {
                         <div className="space-y-6">
                             {/* Title based on mode */}
                             <div>
-                                <h2 className="text-xl font-semibold text-white">
-                                    {isPredictionMode ? '🎯 AI Prediction' : 'Analysis Results'}
+                                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                                    {isPredictionMode && <Target className="w-5 h-5 text-cyber-cyan" />}
+                                    {isPredictionMode ? 'AI Prediction' : 'Analysis Results'}
                                 </h2>
                                 <p className="text-sm text-gray-500">
                                     {isPredictionMode

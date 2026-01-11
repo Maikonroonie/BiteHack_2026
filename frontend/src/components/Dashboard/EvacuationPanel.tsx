@@ -4,7 +4,8 @@
  */
 
 import { motion } from 'framer-motion';
-import type { EvacuationPriority, PredictionResponse } from '../../types';
+import { AlertTriangle, Clock, MapPin, Droplets, AlertCircle } from 'lucide-react';
+import type { PredictionResponse } from '../../types';
 
 interface EvacuationPanelProps {
     prediction: PredictionResponse | null;
@@ -25,14 +26,14 @@ const riskBorderColors = {
     low: 'border-green-500',
 };
 
-const buildingIcons: Record<string, string> = {
-    hospital: '🏥',
-    school: '🏫',
-    kindergarten: '👶',
-    apartments: '🏢',
-    residential: '🏠',
-    commercial: '🏪',
-    industrial: '🏭',
+const buildingLabels: Record<string, string> = {
+    hospital: 'Szpital',
+    school: 'Szkola',
+    kindergarten: 'Przedszkole',
+    apartments: 'Blok',
+    residential: 'Dom',
+    commercial: 'Sklep',
+    industrial: 'Przemysl',
 };
 
 export function EvacuationPanel({ prediction, isLoading }: EvacuationPanelProps) {
@@ -51,7 +52,10 @@ export function EvacuationPanel({ prediction, isLoading }: EvacuationPanelProps)
     if (!prediction) {
         return (
             <div className="glass rounded-xl p-4">
-                <h3 className="text-lg font-semibold text-white mb-2">🚨 Priorytety Ewakuacji</h3>
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-cyber-red" />
+                    Priorytety Ewakuacji
+                </h3>
                 <p className="text-sm text-gray-400">
                     Uruchom predykcję, aby zobaczyć listę budynków do ewakuacji
                 </p>
@@ -65,11 +69,14 @@ export function EvacuationPanel({ prediction, isLoading }: EvacuationPanelProps)
         <div className="glass rounded-xl p-4">
             {/* Header z podsumowaniem ryzyka */}
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">🚨 Priorytety Ewakuacji</h3>
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-cyber-red" />
+                    Priorytety Ewakuacji
+                </h3>
                 <span className={`px-2 py-1 rounded text-xs font-bold ${prediction.risk_level === 'critical' ? 'bg-red-500 text-white' :
-                        prediction.risk_level === 'high' ? 'bg-orange-500 text-white' :
-                            prediction.risk_level === 'moderate' ? 'bg-yellow-500 text-black' :
-                                'bg-green-500 text-white'
+                    prediction.risk_level === 'high' ? 'bg-orange-500 text-white' :
+                        prediction.risk_level === 'moderate' ? 'bg-yellow-500 text-black' :
+                            'bg-green-500 text-white'
                     }`}>
                     {prediction.risk_level.toUpperCase()}
                 </span>
@@ -95,14 +102,20 @@ export function EvacuationPanel({ prediction, isLoading }: EvacuationPanelProps)
             {prediction.precipitation && (
                 <div className="bg-orbital-surface rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">💧 Opady (ostatnie 3h)</span>
+                        <span className="text-sm text-gray-400 flex items-center gap-1">
+                            <Droplets className="w-3 h-3" /> Opady (ostatnie 3h)
+                        </span>
                         <span className="text-sm font-semibold text-white">
                             {prediction.precipitation.mean_mm.toFixed(1)} mm
                         </span>
                     </div>
                     <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-gray-500">
-                            {prediction.precipitation.is_simulated ? '⚠️ Symulowane' : '🛰️ NASA GPM'}
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                            {prediction.precipitation.is_simulated ? (
+                                <><AlertCircle className="w-3 h-3" /> Symulowane</>
+                            ) : (
+                                'NASA GPM'
+                            )}
                         </span>
                         <span className="text-xs text-gray-500">
                             max: {prediction.precipitation.max_mm.toFixed(1)} mm
@@ -128,8 +141,8 @@ export function EvacuationPanel({ prediction, isLoading }: EvacuationPanelProps)
                         >
                             <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xl">
-                                        {buildingIcons[building.building_type] || '🏛️'}
+                                    <span className="text-xs px-2 py-1 bg-orbital-bg rounded font-medium text-gray-300">
+                                        {buildingLabels[building.building_type] || 'Budynek'}
                                     </span>
                                     <div>
                                         <div className="text-sm font-medium text-white">
@@ -145,8 +158,12 @@ export function EvacuationPanel({ prediction, isLoading }: EvacuationPanelProps)
                                 </div>
                             </div>
                             <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                                <span>⏱️ ~{building.estimated_time_to_flood_hours.toFixed(1)}h do zalania</span>
-                                <span>📍 {building.lat.toFixed(4)}, {building.lon.toFixed(4)}</span>
+                                <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> ~{building.estimated_time_to_flood_hours.toFixed(1)}h do zalania
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" /> {building.lat.toFixed(4)}, {building.lon.toFixed(4)}
+                                </span>
                             </div>
                         </motion.div>
                     ))

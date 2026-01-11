@@ -11,12 +11,10 @@ import {
     Radio,
     Play,
     RotateCcw,
-    ChevronRight,
     Layers,
-    Building2,
-    Waves,
     Clock,
-    Zap
+    Zap,
+    Satellite
 } from 'lucide-react';
 import type { AnalysisRequest, BoundingBox, PredictionRequest } from '../../types';
 
@@ -37,6 +35,7 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
     const [dateAfter, setDateAfter] = useState('2024-01-15');
     const [polarization, setPolarization] = useState<'VV' | 'VH'>('VV');
     const [predictionHours, setPredictionHours] = useState(6);
+    const [analysisDate, setAnalysisDate] = useState(new Date().toISOString().split('T')[0]);
     const [isExpanded] = useState(true);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -51,6 +50,7 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
             onPredict({
                 bbox: selectedBbox,
                 prediction_hours: predictionHours,
+                analysis_date: analysisDate,
             });
         } else {
             onAnalyze({
@@ -76,8 +76,8 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
                         <button
                             onClick={() => setMode('prediction')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${mode === 'prediction'
-                                    ? 'bg-cyber-cyan text-orbital-bg'
-                                    : 'text-gray-400 hover:text-white'
+                                ? 'bg-cyber-cyan text-orbital-bg'
+                                : 'text-gray-400 hover:text-white'
                                 }`}
                         >
                             <Zap className="w-4 h-4" />
@@ -86,8 +86,8 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
                         <button
                             onClick={() => setMode('analysis')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${mode === 'analysis'
-                                    ? 'bg-cyber-cyan text-orbital-bg'
-                                    : 'text-gray-400 hover:text-white'
+                                ? 'bg-cyber-cyan text-orbital-bg'
+                                : 'text-gray-400 hover:text-white'
                                 }`}
                         >
                             <Layers className="w-4 h-4" />
@@ -101,7 +101,7 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
                     <div className="flex items-center gap-2 text-cyber-cyan">
                         {mode === 'prediction' ? <Zap className="w-5 h-5" /> : <Layers className="w-5 h-5" />}
                         <h2 className="font-semibold">
-                            {mode === 'prediction' ? '🎯 Nowcasting AI' : 'Flood Analysis'}
+                            {mode === 'prediction' ? 'Nowcasting AI' : 'Flood Analysis'}
                         </h2>
                     </div>
 
@@ -129,6 +129,23 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
                         {mode === 'prediction' ? (
                             /* Prediction Mode Controls */
                             <>
+                                {/* Analysis Date Picker */}
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-sm text-gray-400">
+                                        <Calendar className="w-4 h-4" />
+                                        Data analizy
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={analysisDate}
+                                        onChange={(e) => setAnalysisDate(e.target.value)}
+                                        className="input"
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        Wybierz date historyczna lub dzisiejsza
+                                    </p>
+                                </div>
+
                                 {/* Prediction Hours Slider */}
                                 <div className="space-y-2">
                                     <label className="flex items-center justify-between text-sm text-gray-400">
@@ -156,9 +173,11 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
                                 {/* Info Box */}
                                 <div className="p-3 bg-orbital-surface rounded-lg border border-cyber-cyan/30">
                                     <p className="text-xs text-gray-400">
-                                        <span className="text-cyber-cyan font-semibold">🛰️ Źródła danych:</span>
+                                        <span className="text-cyber-cyan font-semibold flex items-center gap-1">
+                                            <Satellite className="w-3 h-3" /> Zrodla danych:
+                                        </span>
                                         <br />• NASA GPM (opady satelitarne)
-                                        <br />• SRTM DEM (ukształtowanie terenu)
+                                        <br />• SRTM DEM (uksztaltowanie terenu)
                                         <br />• OSM (budynki i infrastruktura)
                                     </p>
                                 </div>
@@ -239,7 +258,7 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
                             ) : (
                                 <>
                                     <Play className="w-5 h-5" />
-                                    {mode === 'prediction' ? `🎯 Przewiduj za ${predictionHours}h` : 'Run Analysis'}
+                                    {mode === 'prediction' ? `Przewiduj za ${predictionHours}h` : 'Run Analysis'}
                                 </>
                             )}
                         </motion.button>
@@ -259,36 +278,13 @@ export function Sidebar({ onAnalyze, onPredict, onLoadDemo, onLoadPredictionDemo
                         </motion.button>
                         <p className="text-xs text-gray-500 mt-2 text-center">
                             {mode === 'prediction'
-                                ? '🎯 Wrocław - Predykcja za 6h'
-                                : 'Wrocław 1997 flood simulation'}
+                                ? 'Wroclaw - Predykcja za 6h'
+                                : 'Wroclaw 1997 flood simulation'}
                         </p>
                     </div>
                 </div>
 
-                {/* Quick Layers */}
-                <div className="mt-8 pt-6 border-t border-orbital-border">
-                    <h3 className="text-sm font-medium text-gray-400 mb-3">Layers</h3>
-                    <div className="space-y-2">
-                        {[
-                            { icon: Waves, label: 'Flood Mask', active: true },
-                            { icon: Building2, label: 'Buildings', active: true },
-                            { icon: MapPin, label: 'Infrastructure', active: false },
-                        ].map((layer, i) => (
-                            <motion.button
-                                key={i}
-                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${layer.active
-                                    ? 'bg-orbital-surface text-cyber-cyan'
-                                    : 'text-gray-500 hover:text-gray-300 hover:bg-orbital-surface/50'
-                                    }`}
-                                whileHover={{ x: 4 }}
-                            >
-                                <layer.icon className="w-4 h-4" />
-                                <span className="text-sm">{layer.label}</span>
-                                <ChevronRight className="w-4 h-4 ml-auto" />
-                            </motion.button>
-                        ))}
-                    </div>
-                </div>
+
             </div>
         </motion.aside>
     );

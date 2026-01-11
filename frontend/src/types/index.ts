@@ -114,6 +114,7 @@ export interface AppState {
 export interface PredictionRequest {
     bbox: BoundingBox;
     prediction_hours: number;
+    analysis_date?: string;
 }
 
 // Evacuation Priority
