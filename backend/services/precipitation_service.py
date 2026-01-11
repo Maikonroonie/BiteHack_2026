@@ -148,7 +148,9 @@ class PrecipitationService:
         Dla hackathonu - realistyczna symulacja gdy brak dostępu do GEE.
         Model oparty na typowych wzorcach opadów w Polsce.
         """
-        np.random.seed(int(datetime.now().timestamp()) % 1000)
+        # Deterministyczny seed oparty na lokalizacji (nie na czasie!)
+        seed = int(abs(bbox[0] * 1000 + bbox[1] * 10000 + bbox[2] * 100 + bbox[3] * 1)) % 10000
+        np.random.seed(seed)
         
         # Symulacja realistycznych opadów (mm)
         # Lekkie: 0-5mm, Umiarkowane: 5-20mm, Silne: 20-50mm, Intensywne: >50mm

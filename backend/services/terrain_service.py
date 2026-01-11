@@ -143,7 +143,9 @@ class TerrainService:
         
         Dla hackathonu - realistyczna symulacja terenu.
         """
-        np.random.seed(42)
+        # Deterministyczny seed oparty na lokalizacji
+        seed = int(abs(bbox[0] * 1000 + bbox[1] * 10000 + bbox[2] * 100 + bbox[3] * 1)) % 10000
+        np.random.seed(seed)
         
         # Symulacja terenu z gradientem (np. dolina rzeki)
         x = np.linspace(0, 1, resolution)

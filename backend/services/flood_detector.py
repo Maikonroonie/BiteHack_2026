@@ -124,7 +124,93 @@ class FloodDetector:
         }
 
     def calculate_evacuation_priorities(self, buildings, flood_probability, prediction_hours):
-        return []
+        """
+        Priorytetyzacja ewakuacji budynków z OSM.
+        Szpitale/szkoły pierwsze, potem mieszkalne.
+        """
+        priorities = []
+        
+        # Wagi typów budynków (wyższa = pilniejsza ewakuacja)
+        type_weights = {
+            "hospital": 1.0,
+            "school": 0.9,
+            "kindergarten": 0.95,
+            "nursing_home": 0.95,
+            "apartments": 0.7,
+            "residential": 0.6,
+            "house": 0.6,
+            "commercial": 0.4,
+            "industrial": 0.3,
+            "yes": 0.5,
+        }
+        
+        # Szacunkowa liczba osób
+        people_estimates = {
+            "hospital": 400,
+            "school": 300,
+            "kindergarten": 100,
+            "nursing_home": 150,
+            "apartments": 200,
+            "residential": 6,
+            "house": 4,
+            "commercial": 50,
+            "industrial": 100,
+            "yes": 20,
+        }
+        
+        for building in buildings:
+            try:
+                # Obsługa różnych formatów danych
+                if hasattr(building, 'building_type'):
+                    btype = building.building_type or 'yes'
+                    osm_id = getattr(building, 'osm_id', 0)
+                    name = getattr(building, 'name', None)
+                    lat = getattr(building, 'lat', 0)
+                    lon = getattr(building, 'lon', 0)
+                elif isinstance(building, dict):
+                    props = building.get('properties', {})
+                    btype = props.get('building_type', 'yes') or 'yes'
+                    osm_id = props.get('osm_id', 0)
+                    name = props.get('name')
+                    coords = building.get('geometry', {}).get('coordinates', [0, 0])
+                    lon, lat = coords[0], coords[1] if len(coords) > 1 else (0, 0)
+                else:
+                    continue
+                    
+                weight = type_weights.get(btype, 0.5)
+                evac_score = flood_probability * weight
+                
+                # Poziom ryzyka
+                if evac_score >= 0.7:
+                    risk_level = "critical"
+                elif evac_score >= 0.5:
+                    risk_level = "high"
+                elif evac_score >= 0.3:
+                    risk_level = "medium"
+                else:
+                    risk_level = "low"
+                
+                # Szacowany czas do zalania
+                time_to_flood = prediction_hours * (1 - flood_probability * 0.8)
+                
+                priorities.append({
+                    "osm_id": osm_id,
+                    "name": name or f"Budynek {btype}",
+                    "building_type": btype,
+                    "lat": lat,
+                    "lon": lon,
+                    "risk_level": risk_level,
+                    "flood_probability": round(flood_probability, 2),
+                    "evacuation_score": round(evac_score, 2),
+                    "estimated_time_to_flood_hours": round(time_to_flood, 1),
+                    "people_estimate": people_estimates.get(btype, 50)
+                })
+            except Exception:
+                continue
+        
+        # Sortuj po score (najwyższy pierwszy)
+        priorities.sort(key=lambda x: x["evacuation_score"], reverse=True)
+        return priorities[:10]
 
     # Helpers
     def _predict_mask(self, image):
