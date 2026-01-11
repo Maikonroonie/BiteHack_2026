@@ -61,15 +61,16 @@ class FloodDetector:
             self.train_on_history([image_after, image_before])
 
         # AI Detection
+        # 1. AI Detection (Zostawiamy jak jest)
         mask_after = self._predict_mask(image_after)
-        mask_before = self._predict_mask(image_before)
 
-        # Bezpiecznik fizyczny
-        physics_mask = image_after < -15.0
+        # 2. POLUZOWANIE BEZPIECZNIKA (Zmień z -19.5 na -17.0)
+        # Przy średniej -16dB, próg -19.5 jest za niski dla płytkiej wody miejskiej
+        physics_mask = image_after < -16.0 
 
-        current_flood_mask = mask_after & (~mask_before) & physics_mask
-        current_flood_mask = median_filter(current_flood_mask, size=3)
-
+        # 3. WYŁĄCZENIE ODEJMOWANIA (Zakomentuj (~mask_before))
+        # Chcemy zobaczyć CAŁĄ wodę z 20 września, a nie tylko różnicę względem 14-go
+        current_flood_mask = mask_after & physics_mask
         depth_map, risk_map = self._calculate_physics(current_flood_mask, dem_data)
         
         # 20 kroków symulacji
@@ -86,10 +87,14 @@ class FloodDetector:
 
         max_depth = float(np.max(depth_map)) if depth_map.size > 0 else 0.0
 
+        flooded_px = int(np.sum(current_flood_mask))
+        flooded_km2 = (flooded_px * 100) / 1_000_000
+
         return {
             "status": "success",
             "stats": {
                 "flooded_area_px": int(np.sum(current_flood_mask)),
+                "flooded_area_km2": round(flooded_km2, 4),
                 "max_depth_m": round(max_depth, 2),
                 "risk_level": "CRITICAL" if max_depth > 1.2 else "MODERATE"
             },
@@ -155,6 +160,38 @@ class FloodDetector:
             else:
                 break
         return future
+    
+    def check_impact(self, buildings: List[Any], mask: np.ndarray, bbox: List[float]) -> List[Any]:
+        """Sprawdza wpływ powodzi, obsługując obiekty BuildingInfo oraz słowniki."""
+        h, w = mask.shape
+        min_lon, min_lat, max_lon, max_lat = bbox
+        affected = []
+
+        for b in buildings:
+            try:
+                # Obsługa obiektów Pydantic (dostęp przez kropkę)
+                if hasattr(b, 'geometry'):
+                    lon, lat = b.geometry.coordinates
+                # Obsługa słowników
+                else:
+                    lon, lat = b["geometry"]["coordinates"]
+                
+                # Mapowanie na macierz
+                x = int((lon - min_lon) / (max_lon - min_lon) * w)
+                y = int((max_lat - lat) / (max_lat - min_lat) * h)
+
+                if 0 <= x < w and 0 <= y < h:
+                    if mask[y, x]:
+                        # Oznaczamy zalanie w zależności od typu danych
+                        if hasattr(b, 'properties'):
+                            b.properties.is_flooded = True
+                        else:
+                            b["properties"]["is_flooded"] = True
+                        affected.append(b)
+            except (AttributeError, KeyError, TypeError, IndexError):
+                continue
+                
+        return affected
 
     def _mask_to_geojson(self, mask, bbox, shape, props):
         h, w = shape

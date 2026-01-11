@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from typing import Optional
+import numpy as np
 
 from models.schemas import (
     AnalysisRequest, 
@@ -39,54 +40,50 @@ sar_processor = SARProcessor()
 
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_flood(request: AnalysisRequest):
-    """
-    Główny endpoint analizy powodzi.
-    ZMODYFIKOWANY: Wyłączono analizę budynków, skupiamy się na fizyce terenu.
-    """
     start_time = time.time()
-    
     try:
-        # 1. Przetwarzanie SAR (Dane satelitarne)
-        sar_data = await sar_processor.process_sar(
-            bbox=request.bbox.to_list(),
-            date_after=request.date_after
-        )
-        
-        # Pobierz dane pomocnicze z GEE
+        # 1. Dane SAR i GEE
+        sar_data = await sar_processor.process_sar(bbox=request.bbox.to_list(), date_after=request.date_after)
         gee_data = await gee_service.get_terrain_and_rain(request.bbox.to_list())
         
-        # 2. Detekcja powodzi (Model AI + Fizyka Grawitacji)
-        flood_result = await flood_detector.detect_flood(sar_data)
+        # 2. Maska powodziowa
+        flood_result = flood_detector.detect_flood(sar_data)
+        mask = flood_result["mask"]
         
-        # Budynki wywalamny na razie
-        flooded_buildings = [] 
-        
-        # 4. Przygotuj statystyki
-        processing_time = time.time() - start_time
-        stats = flood_result["stats"]
-        
-        # Uzupełnij statystyki o dane z GEE
-        stats.avg_elevation_m = gee_data.get("avg_elevation", 0)
-        stats.current_rainfall_mm_h = gee_data.get("current_rainfall", 0)
+        # 3. Analiza budynków (Naprawione wywołanie)
+        all_buildings = await osm_service.get_buildings(request.bbox.to_list())
+        flooded_buildings = flood_detector.check_impact(all_buildings, mask, request.bbox.to_list())
 
-        # Budowanie finalnej odpowiedzi
+        # 4. Statystyki powierzchniowe
+        sar_matrix = sar_data["after"]
+        total_px = int(sar_matrix.size)
+        flooded_px = int(np.sum(flood_result["mask"]))
+        flooded_km2 = (flooded_px * 100) / 1_000_000
+
+        final_stats = {
+            "total_pixels": total_px,
+            "flooded_pixels": flooded_px,
+            "flood_percentage": round((flooded_px / total_px) * 100, 1) if total_px > 0 else 0,
+            "area_km2": round((total_px * 100) / 1_000_000, 2),
+            "flooded_area_km2": round(flooded_km2, 2), # Naprawa 0.00 km2
+            "avg_elevation_m": gee_data.get("avg_elevation", 0),
+            "current_rainfall_mm_h": gee_data.get("current_rainfall", 0)
+        }
+
         return AnalysisResponse(
             status=AnalysisStatus.COMPLETED,
-            message="Analiza terenu zakończona (Fizyka cieczy aktywna)",
-            stats=flood_result["stats"],
+            message=f"Analiza zakończona: {len(flooded_buildings)} zalanych obiektów",
+            stats=final_stats,
             flood_geojson=flood_result["geojson"],
-            buildings_affected=0, # Wyłączone
-            estimated_loss_pln=0.0,
-            processing_time_seconds=round(processing_time, 2)
+            buildings_affected=len(flooded_buildings),
+            estimated_loss_pln=len(flooded_buildings) * 45000.0,
+            processing_time_seconds=round(time.time() - start_time, 2)
         )
-        
+
     except Exception as e:
-        print(f"Błąd w /analyze: {str(e)}")
-        return AnalysisResponse(
-            status=AnalysisStatus.FAILED,
-            message=f"Błąd analizy: {str(e)}",
-            processing_time_seconds=time.time() - start_time
-        )
+        print(f"🔴 Krytyczny błąd w /analyze: {str(e)}")
+        # Rzucamy formalny błąd HTTP, aby uniknąć ResponseValidationError
+        raise HTTPException(status_code=500, detail=f"Błąd analizy: {str(e)}")
 
 
 @router.post("/buildings", response_model=BuildingsResponse)
@@ -111,7 +108,7 @@ async def get_flood_mask_only(request: AnalysisRequest):
             bbox=request.bbox.to_list(),
             date_after=request.date_after
         )
-        flood_result = await flood_detector.detect_flood(sar_data)
+        flood_result = flood_detector.detect_flood(sar_data)
         
         return FloodMaskResponse(
             type="FeatureCollection",

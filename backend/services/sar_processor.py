@@ -19,7 +19,7 @@ class SARProcessor:
             
             # Obsługa daty (okno +/- 3 dni)
             date_obj = date.fromisoformat(date_after) if isinstance(date_after, str) else date_after
-            time_range = f"{(date_obj - timedelta(days=3)).isoformat()}/{(date_obj + timedelta(days=3)).isoformat()}"
+            time_range = f"{(date_obj - timedelta(days=6)).isoformat()}/{(date_obj + timedelta(days=3)).isoformat()}"
 
             search = catalog.search(
                 collections=["sentinel-1-grd"],
