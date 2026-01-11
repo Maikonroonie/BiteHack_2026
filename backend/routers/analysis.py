@@ -1,8 +1,3 @@
-"""
-CrisisEye - Analysis Router
-Główne endpointy do analizy i predykcji powodzi 
-"""
-
 import time
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
@@ -32,7 +27,6 @@ from services.terrain_service import terrain_service
 
 router = APIRouter()
 
-# Inicjalizacja serwisów
 flood_detector = FloodDetector()
 flood_predictor = FloodPredictor()
 osm_service = OSMService()
@@ -42,19 +36,15 @@ sar_processor = SARProcessor()
 async def analyze_flood(request: AnalysisRequest):
     start_time = time.time()
     try:
-        # 1. Dane SAR i GEE
         sar_data = await sar_processor.process_sar(bbox=request.bbox.to_list(), date_after=request.date_after)
         gee_data = await gee_service.get_terrain_and_rain(request.bbox.to_list())
         
-        # 2. Maska powodziowa
         flood_result = flood_detector.detect_flood(sar_data)
         mask = flood_result["mask"]
         
-        # 3. Analiza budynków (Naprawione wywołanie)
         all_buildings = await osm_service.get_buildings(request.bbox.to_list())
         flooded_buildings = flood_detector.check_impact(all_buildings, mask, request.bbox.to_list())
 
-        # 4. Statystyki powierzchniowe
         sar_matrix = sar_data["after"]
         total_px = int(sar_matrix.size)
         flooded_px = int(np.sum(flood_result["mask"]))
@@ -65,7 +55,7 @@ async def analyze_flood(request: AnalysisRequest):
             "flooded_pixels": flooded_px,
             "flood_percentage": round((flooded_px / total_px) * 100, 1) if total_px > 0 else 0,
             "area_km2": round((total_px * 100) / 1_000_000, 2),
-            "flooded_area_km2": round(flooded_km2, 2), # Naprawa 0.00 km2
+            "flooded_area_km2": round(flooded_km2, 2),
             "avg_elevation_m": gee_data.get("avg_elevation", 0),
             "current_rainfall_mm_h": gee_data.get("current_rainfall", 0)
         }
@@ -81,14 +71,12 @@ async def analyze_flood(request: AnalysisRequest):
         )
 
     except Exception as e:
-        print(f"🔴 Krytyczny błąd w /analyze: {str(e)}")
-        # Rzucamy formalny błąd HTTP, aby uniknąć ResponseValidationError
+        print(f"Krytyczny błąd w /analyze: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Błąd analizy: {str(e)}")
 
 
 @router.post("/buildings", response_model=BuildingsResponse)
 async def get_buildings_only(request: BuildingsRequest):
-    """Szybki podgląd infrastruktury bez pełnej analizy SAR."""
     try:
         buildings = await osm_service.get_buildings(request.bbox.to_list())
         return BuildingsResponse(
@@ -102,7 +90,6 @@ async def get_buildings_only(request: BuildingsRequest):
 
 @router.post("/flood-mask", response_model=FloodMaskResponse)
 async def get_flood_mask_only(request: AnalysisRequest):
-    """Endpoint dedykowany dla warstw mapy (Tiles/GeoJSON)."""
     try:
         sar_data = await sar_processor.process_sar(
             bbox=request.bbox.to_list(),
@@ -121,7 +108,7 @@ async def get_flood_mask_only(request: AnalysisRequest):
 
 @router.get("/demo")
 async def get_demo_data():
-    """Demo endpoint (Wrocław 1997) do testów Frontendu."""
+    """Demo (Wrocław 1997) do testów Frontendu."""
     demo_geojson = {
         "type": "FeatureCollection",
         "features": [
@@ -155,7 +142,6 @@ async def get_demo_data():
 
 @router.post("/predict", response_model=PredictionResponse)
 async def predict_flood(request: PredictionRequest):
-    """GŁÓWNY ENDPOINT AI - Predykcja powodzi w czasie rzeczywistym."""
     start_time = time.time()
     
     try:
@@ -177,9 +163,7 @@ async def predict_flood(request: PredictionRequest):
             terrain_data=terrain_data,
             prediction_hours=request.prediction_hours
         )
-        
-        # Budynki w predykcji zostawiamy póki co (albo zwracamy puste jeśli totalnie bez budynków)
-        # Tu zwracamy puste dla spójności
+
         evacuation_priorities = [] 
         
         processing_time = time.time() - start_time
@@ -235,7 +219,7 @@ async def get_prediction_demo():
         flood_probability=0.72,
         risk_level="high",
         confidence=0.85,
-        evacuation_priorities=[], # Puste
+        evacuation_priorities=[],
         processing_time_seconds=0.15,
         next_update_minutes=30
     )

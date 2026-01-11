@@ -1,8 +1,3 @@
-"""
-CrisisEye - Konfiguracja aplikacji
-Hackathon "AI między orbitami" 2026
-"""
-
 import os
 from pydantic_settings import BaseSettings
 from functools import lru_cache

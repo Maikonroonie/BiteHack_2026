@@ -1,8 +1,3 @@
-"""
-CrisisEye - OpenStreetMap Service
-Pobieranie budynków i infrastruktury z OSM Overpass API.
-"""
-
 import httpx
 from typing import List, Dict, Any
 import asyncio
@@ -11,26 +6,11 @@ from models.schemas import BuildingInfo
 
 
 class OSMService:
-    """
-    Serwis do pobierania danych z OpenStreetMap.
-    Używa Overpass API do zapytań o budynki.
-    """
-    
     def __init__(self):
         self.overpass_url = "https://overpass-api.de/api/interpreter"
         self.timeout = 30.0
     
     async def get_buildings(self, bbox: List[float]) -> List[BuildingInfo]:
-        """
-        Pobiera budynki z OSM dla zadanego obszaru.
-        
-        Args:
-            bbox: Bounding box [minLon, minLat, maxLon, maxLat]
-            
-        Returns:
-            Lista budynków jako BuildingInfo
-        """
-        # Format dla Overpass: (south,west,north,east)
         overpass_bbox = f"{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]}"
         
         query = f"""
@@ -55,20 +35,18 @@ class OSMService:
                 return self._parse_buildings(data)
                 
         except httpx.TimeoutException:
-            print("⚠️ OSM request timed out, returning demo data")
+            print("OSM request timed out, returning demo data")
             return self._get_demo_buildings(bbox)
         except Exception as e:
-            print(f"⚠️ OSM error: {e}, returning demo data")
+            print(f"OSM error: {e}, returning demo data")
             return self._get_demo_buildings(bbox)
     
     def _parse_buildings(self, data: Dict[str, Any]) -> List[BuildingInfo]:
-        """Parsuje odpowiedź Overpass do listy BuildingInfo."""
         buildings = []
         
         elements = data.get("elements", [])
         
         for element in elements:
-            # Pobierz centrum budynku
             if "center" in element:
                 lat = element["center"]["lat"]
                 lon = element["center"]["lon"]
@@ -90,9 +68,6 @@ class OSMService:
         return buildings
     
     def _get_demo_buildings(self, bbox: List[float]) -> List[BuildingInfo]:
-        """
-        Generuje demo budynki gdy OSM jest niedostępne.
-        """
         import random
         random.seed(42)
         
@@ -122,16 +97,6 @@ class OSMService:
         bbox: List[float],
         infra_type: str = "highway"
     ) -> List[Dict[str, Any]]:
-        """
-        Pobiera infrastrukturę (drogi, mosty, etc.) z OSM.
-        
-        Args:
-            bbox: Bounding box
-            infra_type: Typ infrastruktury (highway, bridge, railway)
-            
-        Returns:
-            Lista elementów infrastruktury
-        """
         overpass_bbox = f"{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]}"
         
         query = f"""
@@ -153,5 +118,5 @@ class OSMService:
                 return data.get("elements", [])
                 
         except Exception as e:
-            print(f"⚠️ Infrastructure query failed: {e}")
+            print(f"Infrastructure query failed: {e}")
             return []

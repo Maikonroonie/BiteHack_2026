@@ -1,34 +1,16 @@
-"""
-CrisisEye - Terrain Service (DEM)
-Analiza ukształtowania terenu z SRTM DEM.
-
-Służy do:
-- Identyfikacji terenów nisko położonych (zagrożonych)
-- Obliczania kierunku spływu wody
-- Wyznaczania zlewni i korytarzy powodziowych
-"""
-
 import os
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 import numpy as np
 
-
 class TerrainService:
-    """
-    Serwis do analizy ukształtowania terenu.
-    
-    Używa SRTM (Shuttle Radar Topography Mission) DEM z GEE.
-    Rozdzielczość: ~30m dla większości świata.
-    """
-    
     def __init__(self):
         self.initialized = False
         self.project_id = os.getenv("GEE_PROJECT_ID", "")
-        self.dem_collection = "USGS/SRTMGL1_003"  # SRTM 30m
+        self.dem_collection = "USGS/SRTMGL1_003"
         
     async def initialize(self) -> bool:
-        """Inicjalizuje połączenie z Google Earth Engine."""
+        """Połączenie z Google Earth Engine."""
         if self.initialized:
             return True
             
@@ -47,14 +29,14 @@ class TerrainService:
                 ee.Initialize(project=self.project_id)
             
             self.initialized = True
-            print("✅ Terrain Service (DEM) initialized")
+            print("Terrain Service (DEM) initialized")
             return True
             
         except ImportError:
-            print("⚠️ earthengine-api not installed - using simulated terrain")
+            print("Earthengine-api not installed - using simulated terrain")
             return False
         except Exception as e:
-            print(f"⚠️ GEE initialization failed: {e} - using simulated terrain")
+            print(f"GEE initialization failed: {e} - using simulated terrain")
             return False
     
     async def get_elevation(
@@ -62,16 +44,6 @@ class TerrainService:
         bbox: List[float],
         resolution: int = 100
     ) -> Dict[str, Any]:
-        """
-        Pobiera dane wysokościowe dla obszaru.
-        
-        Args:
-            bbox: Bounding box [minLon, minLat, maxLon, maxLat]
-            resolution: Rozdzielczość siatki (liczba punktów na bok)
-            
-        Returns:
-            Dict z danymi wysokościowymi
-        """
         if await self.initialize():
             return await self._get_dem_data(bbox, resolution)
         else:
@@ -90,8 +62,7 @@ class TerrainService:
             
             dem = ee.Image(self.dem_collection)
             elevation = dem.select('elevation')
-            
-            # Statystyki dla regionu
+
             stats = elevation.reduceRegion(
                 reducer=ee.Reducer.mean().combine(
                     ee.Reducer.max(), sharedInputs=True
@@ -104,8 +75,7 @@ class TerrainService:
                 scale=30,
                 maxPixels=1e9
             ).getInfo()
-            
-            # Oblicz nachylenie (slope)
+
             slope = ee.Terrain.slope(elevation)
             slope_stats = slope.reduceRegion(
                 reducer=ee.Reducer.mean(),
@@ -130,7 +100,7 @@ class TerrainService:
             }
             
         except Exception as e:
-            print(f"⚠️ DEM query failed: {e}")
+            print(f"DEM query failed: {e}")
             return self._get_simulated_elevation(bbox, resolution)
     
     def _get_simulated_elevation(
@@ -138,20 +108,13 @@ class TerrainService:
         bbox: List[float],
         resolution: int
     ) -> Dict[str, Any]:
-        """
-        Generuje symulowane dane wysokościowe.
-        
-        Dla hackathonu - realistyczna symulacja terenu.
-        """
         np.random.seed(42)
-        
-        # Symulacja terenu z gradientem (np. dolina rzeki)
+
         x = np.linspace(0, 1, resolution)
         y = np.linspace(0, 1, resolution)
         X, Y = np.meshgrid(x, y)
-        
-        # Podstawowy teren - dolina w środku
-        base_elevation = 150  # m n.p.m.
+
+        base_elevation = 150
         valley = 30 * np.exp(-((X - 0.5)**2 + (Y - 0.5)**2) / 0.1)
         hills = 50 * (np.sin(X * 4 * np.pi) * np.cos(Y * 3 * np.pi) + 1) / 2
         noise = np.random.normal(0, 5, (resolution, resolution))
@@ -179,21 +142,13 @@ class TerrainService:
         self,
         bbox: List[float]
     ) -> Dict[str, Any]:
-        """
-        Oblicza akumulację przepływu wody.
-        
-        Identyfikuje gdzie woda się zbiera (potencjalne miejsca zalania).
-        """
         elevation_data = await self.get_elevation(bbox, resolution=50)
         
         if elevation_data.get("grid"):
             grid = np.array(elevation_data["grid"])
             
-            # Prosty algorytm flow accumulation
-            # W produkcji użylibyśmy D8/D-inf z pysheds
             accumulation = self._simple_flow_accumulation(grid)
-            
-            # Znajdź punkty wysokiej akumulacji (potencjalne zalania)
+
             threshold = np.percentile(accumulation, 90)
             high_accumulation_mask = accumulation > threshold
             
@@ -208,7 +163,6 @@ class TerrainService:
                 "is_simulated": True
             }
         else:
-            # Fallback dla prawdziwych danych GEE
             return {
                 "bbox": bbox,
                 "high_risk_percentage": np.random.uniform(5, 15),
@@ -216,25 +170,18 @@ class TerrainService:
             }
     
     def _simple_flow_accumulation(self, elevation: np.ndarray) -> np.ndarray:
-        """
-        Prosty algorytm akumulacji przepływu.
-        
-        Dla każdej komórki liczy ile komórek "nad nią" spływa w to miejsce.
-        """
+
         rows, cols = elevation.shape
         accumulation = np.ones_like(elevation)
         
-        # Kierunki: 8 sąsiadów
         directions = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
         
-        # Sortuj komórki od najwyższej do najniższej
         flat_indices = np.argsort(elevation, axis=None)[::-1]
         
         for flat_idx in flat_indices:
             i, j = flat_idx // cols, flat_idx % cols
             current_elev = elevation[i, j]
             
-            # Znajdź najniższego sąsiada
             min_elev = current_elev
             min_neighbor = None
             
@@ -245,7 +192,6 @@ class TerrainService:
                         min_elev = elevation[ni, nj]
                         min_neighbor = (ni, nj)
             
-            # Przekaż akumulację do najniższego sąsiada
             if min_neighbor:
                 accumulation[min_neighbor] += accumulation[i, j]
         
@@ -256,21 +202,13 @@ class TerrainService:
         elevation_data: Dict[str, Any],
         threshold_percentile: int = 20
     ) -> Dict[str, Any]:
-        """
-        Identyfikuje tereny nisko położone (zagrożone zalaniem).
-        
-        Args:
-            elevation_data: Dane z get_elevation()
-            threshold_percentile: Procent najniższych punktów do oznaczenia
-        """
         if "grid" in elevation_data:
             grid = np.array(elevation_data["grid"])
             threshold = np.percentile(grid, threshold_percentile)
             
             low_areas = grid < threshold
             low_area_percentage = 100 * np.sum(low_areas) / grid.size
-            
-            # Znajdź "centrum" niskich obszarów (centroid)
+
             if np.any(low_areas):
                 low_indices = np.where(low_areas)
                 center_y = np.mean(low_indices[0]) / grid.shape[0]
@@ -296,6 +234,4 @@ class TerrainService:
                 "note": "Estimation based on percentile"
             }
 
-
-# Singleton instance
 terrain_service = TerrainService()

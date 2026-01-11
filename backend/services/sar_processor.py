@@ -11,15 +11,13 @@ class SARProcessor:
         self.stac_api_url = "https://planetarycomputer.microsoft.com/api/stac/v1"
 
     async def process_sar(self, bbox: List[float], date_after: Any, **kwargs) -> Dict[str, Any]:
-        """Pobiera prawdziwe dane Sentinel-1 przez Microsoft STAC"""
-        print(f"🛰️ Szukam danych SAR dla: {bbox}")
+        print(f"Szukam danych SAR dla: {bbox}")
         
         try:
             catalog = pystac_client.Client.open(self.stac_api_url, modifier=planetary_computer.sign_inplace)
             
-            # Obsługa daty (okno +/- 3 dni)
             date_obj = date.fromisoformat(date_after) if isinstance(date_after, str) else date_after
-            time_range = f"{(date_obj - timedelta(days=6)).isoformat()}/{(date_obj + timedelta(days=3)).isoformat()}"
+            time_range = f"{(date_obj - timedelta(days=3)).isoformat()}/{(date_obj + timedelta(days=6)).isoformat()}"
 
             search = catalog.search(
                 collections=["sentinel-1-grd"],
@@ -35,32 +33,28 @@ class SARProcessor:
             item = items[0]
             href = planetary_computer.sign(item.assets["vv"].href)
             
-            # 1. Wczytaj
             da = rioxarray.open_rasterio(href)
-            # 2. Najpierw rzutowanie na Lat/Lon (stopnie)
+
             da_reprojected = da.rio.reproject("EPSG:4326") 
-            # 3. Przytnij (bo bbox  stopniach)
+
             da_clipped = da_reprojected.rio.clip_box(*bbox)
             
             sar_image = da_clipped.squeeze().values
 
             if np.max(sar_image) > 0:
-                # Konwersja na dB
                 sar_image = 10 * np.log10(np.maximum(sar_image, 0.0001))
-                # Kalibracja
                 if np.mean(sar_image) > 0:
                     sar_image = sar_image - 40.0 
 
             sar_image = np.clip(sar_image, -35, 5)
-            print(f"✅ Sukces! Macierz SAR: {sar_image.shape}")
+            print(f"Sukces! Macierz SAR: {sar_image.shape}")
             
-            # Pobieranie DEM 
             dem = self.fetch_terrain_data(bbox, sar_image.shape)
             if dem is None:
                 dem = np.zeros_like(sar_image)
 
             return {
-                "before": sar_image + 5.0, # Symulacja 'przed'
+                "before": sar_image + 5.0,
                 "after": sar_image,
                 "change": -5.0 * np.ones_like(sar_image),
                 "dem": dem,
@@ -68,11 +62,10 @@ class SARProcessor:
                 "resolution": 10
             }
         except Exception as e:
-            print(f"❌ Błąd SAR: {e}")
+            print(f"Błąd SAR: {e}")
             raise e
 
     def fetch_terrain_data(self, bbox: List[float], shape: tuple):
-        """Pobiera wysokość terenu (Copernicus DEM)"""
         try:
             catalog = pystac_client.Client.open(self.stac_api_url, modifier=planetary_computer.sign_inplace)
             search = catalog.search(collections=["copernicus-dem-glo-30"], bbox=bbox)

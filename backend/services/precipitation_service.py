@@ -1,11 +1,3 @@
-"""
-CrisisEye - Precipitation Service (GPM)
-Pobieranie danych opadowych z NASA GPM przez Google Earth Engine.
-
-GPM (Global Precipitation Measurement) dostarcza dane opadowe co 30 minut,
-co pozwala na nowcasting powodzi bez czekania na zdjęcia SAR.
-"""
-
 import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
@@ -13,23 +5,13 @@ import numpy as np
 
 
 class PrecipitationService:
-    """
-    Serwis do pobierania danych opadowych z NASA GPM.
-    
-    Dane używane do:
-    - Aktualnych opadów (co 30 min)
-    - Akumulacji opadów (3h, 6h, 24h)
-    - Predykcji ryzyka powodzi
-    """
-    
     def __init__(self):
         self.initialized = False
         self.project_id = os.getenv("GEE_PROJECT_ID", "")
-        # GPM IMERG collection ID
         self.gpm_collection = "NASA/GPM_L3/IMERG_V06"
         
     async def initialize(self) -> bool:
-        """Inicjalizuje połączenie z Google Earth Engine."""
+        """Połączenie z Google Earth Engine."""
         if self.initialized:
             return True
             
@@ -48,14 +30,14 @@ class PrecipitationService:
                 ee.Initialize(project=self.project_id)
             
             self.initialized = True
-            print("✅ Precipitation Service (GPM) initialized")
+            print("Precipitation Service (GPM) initialized")
             return True
             
         except ImportError:
-            print("⚠️ earthengine-api not installed - using simulated data")
+            print("Earthengine-api not installed - using simulated data")
             return False
         except Exception as e:
-            print(f"⚠️ GEE initialization failed: {e} - using simulated data")
+            print(f"GEE initialization failed: {e} - using simulated data")
             return False
     
     async def get_current_precipitation(
@@ -63,16 +45,6 @@ class PrecipitationService:
         bbox: List[float],
         hours_back: int = 3
     ) -> Dict[str, Any]:
-        """
-        Pobiera aktualne dane opadowe dla obszaru.
-        
-        Args:
-            bbox: Bounding box [minLon, minLat, maxLon, maxLat]
-            hours_back: Ile godzin wstecz analizować
-            
-        Returns:
-            Dict z danymi opadowymi
-        """
         if await self.initialize():
             return await self._get_gpm_data(bbox, hours_back)
         else:
@@ -83,31 +55,27 @@ class PrecipitationService:
         bbox: List[float],
         hours_back: int
     ) -> Dict[str, Any]:
-        """Pobiera prawdziwe dane z GPM przez GEE."""
         try:
             import ee
             
             region = ee.Geometry.Rectangle(bbox)
             end_date = datetime.utcnow()
             start_date = end_date - timedelta(hours=hours_back)
-            
-            # Pobierz kolekcję GPM IMERG
+
             collection = (ee.ImageCollection(self.gpm_collection)
                 .filterBounds(region)
                 .filterDate(start_date.isoformat(), end_date.isoformat())
-                .select('precipitationCal')  # Skalibrowane opady
+                .select('precipitationCal')
             )
             
             count = collection.size().getInfo()
             
             if count == 0:
-                print(f"⚠️ No GPM data for last {hours_back}h - using simulation")
+                print(f"No GPM data for last {hours_back}h - using simulation")
                 return self._get_simulated_data(bbox, hours_back)
-            
-            # Suma opadów w okresie (mm)
+
             total_precip = collection.sum()
             
-            # Oblicz statystyki dla regionu
             stats = total_precip.reduceRegion(
                 reducer=ee.Reducer.mean().combine(
                     ee.Reducer.max(), sharedInputs=True
@@ -115,7 +83,7 @@ class PrecipitationService:
                     ee.Reducer.min(), sharedInputs=True
                 ),
                 geometry=region,
-                scale=10000,  # 10km resolution
+                scale=10000,
                 maxPixels=1e9
             ).getInfo()
             
@@ -134,7 +102,7 @@ class PrecipitationService:
             }
             
         except Exception as e:
-            print(f"⚠️ GPM query failed: {e}")
+            print(f"GPM query failed: {e}")
             return self._get_simulated_data(bbox, hours_back)
     
     def _get_simulated_data(
@@ -142,16 +110,8 @@ class PrecipitationService:
         bbox: List[float],
         hours_back: int
     ) -> Dict[str, Any]:
-        """
-        Generuje symulowane dane opadowe.
-        
-        Dla hackathonu - realistyczna symulacja gdy brak dostępu do GEE.
-        Model oparty na typowych wzorcach opadów w Polsce.
-        """
         np.random.seed(int(datetime.now().timestamp()) % 1000)
         
-        # Symulacja realistycznych opadów (mm)
-        # Lekkie: 0-5mm, Umiarkowane: 5-20mm, Silne: 20-50mm, Intensywne: >50mm
         intensity = np.random.choice(
             ["light", "moderate", "heavy", "intense"],
             p=[0.5, 0.3, 0.15, 0.05]
@@ -188,12 +148,6 @@ class PrecipitationService:
         self,
         bbox: List[float]
     ) -> Dict[str, float]:
-        """
-        Oblicza akumulację opadów dla różnych okresów.
-        
-        Returns:
-            Dict z akumulacją: 1h, 3h, 6h, 12h, 24h
-        """
         accumulation = {}
         
         for hours in [1, 3, 6, 12, 24]:
@@ -207,21 +161,7 @@ class PrecipitationService:
         precipitation_mm: float,
         soil_saturation: float = 0.5
     ) -> Dict[str, Any]:
-        """
-        Oblicza ryzyko powodzi na podstawie opadów.
-        
-        Args:
-            precipitation_mm: Opady w mm (suma z ostatnich godzin)
-            soil_saturation: Nasycenie gleby (0-1), 1 = całkowicie mokra
-            
-        Returns:
-            Dict z poziomem ryzyka i prawdopodobieństwem
-        """
-        # Efektywne opady uwzględniające nasycenie gleby
-        # Mokra gleba = mniejsza infiltracja = większy spływ
         effective_precip = precipitation_mm * (0.5 + 0.5 * soil_saturation)
-        
-        # Progi ryzyka (mm efektywnych opadów)
         if effective_precip < 10:
             risk_level = "low"
             probability = 0.05 + effective_precip * 0.01
@@ -254,5 +194,4 @@ class PrecipitationService:
         return recommendations.get(risk_level, "Brak danych")
 
 
-# Singleton instance
 precipitation_service = PrecipitationService()

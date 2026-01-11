@@ -7,7 +7,6 @@ from scipy.ndimage import binary_dilation, median_filter
 import rasterio.features
 from typing import Dict, Any, List
 
-# Ścieżka do zapisu modelu
 MODEL_PATH = "models_cache/sar_kmeans_v1.joblib"
 
 class FloodDetector:
@@ -51,7 +50,6 @@ class FloodDetector:
         self.model_loaded = True
 
     def detect_flood(self, sar_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Główna metoda analizy."""
         image_after = np.nan_to_num(sar_data["after"], nan=0.0)
         image_before = np.nan_to_num(sar_data["before"], nan=0.0)
         dem_data = np.nan_to_num(sar_data.get("dem"), nan=0.0)
@@ -60,20 +58,14 @@ class FloodDetector:
         if not self.model_loaded:
             self.train_on_history([image_after, image_before])
 
-        # AI Detection
-        # 1. AI Detection (Zostawiamy jak jest)
         mask_after = self._predict_mask(image_after)
 
-        # 2. POLUZOWANIE BEZPIECZNIKA (Zmień z -19.5 na -17.0)
-        # Przy średniej -16dB, próg -19.5 jest za niski dla płytkiej wody miejskiej
         physics_mask = image_after < -16.0 
 
-        # 3. WYŁĄCZENIE ODEJMOWANIA (Zakomentuj (~mask_before))
-        # Chcemy zobaczyć CAŁĄ wodę z 20 września, a nie tylko różnicę względem 14-go
+
         current_flood_mask = mask_after & physics_mask
         depth_map, risk_map = self._calculate_physics(current_flood_mask, dem_data)
-        
-        # 20 kroków symulacji
+
         future_mask = self._simulate_gravity(current_flood_mask, dem_data, steps=20)
 
         geojson_current = self._mask_to_geojson(current_flood_mask, bbox, image_after.shape, 
@@ -101,8 +93,6 @@ class FloodDetector:
             "geojson": {"type": "FeatureCollection", "features": all_features},
             "mask": current_flood_mask 
         }
-
-    # Metody dla endpointu /predict
     async def predict_flood_risk(self, bbox, precipitation_data, terrain_data, prediction_hours):
         precip_mm = precipitation_data.get("precipitation_mm", {}).get("mean", 0)
         if precip_mm > 20:
@@ -125,8 +115,7 @@ class FloodDetector:
 
     def calculate_evacuation_priorities(self, buildings, flood_probability, prediction_hours):
         return []
-
-    # Helpers
+    
     def _predict_mask(self, image):
         h, w = image.shape
         X = image.reshape(-1, 1)
@@ -148,7 +137,6 @@ class FloodDetector:
         return depth, risk
 
     def _simulate_gravity(self, mask, dem, steps=3):
-        """Symulacja spływu grawitacyjnego"""
         future = mask.copy()
         if np.max(dem) == np.min(dem): return future
         for _ in range(steps):
@@ -162,27 +150,22 @@ class FloodDetector:
         return future
     
     def check_impact(self, buildings: List[Any], mask: np.ndarray, bbox: List[float]) -> List[Any]:
-        """Sprawdza wpływ powodzi, obsługując obiekty BuildingInfo oraz słowniki."""
         h, w = mask.shape
         min_lon, min_lat, max_lon, max_lat = bbox
         affected = []
 
         for b in buildings:
             try:
-                # Obsługa obiektów Pydantic (dostęp przez kropkę)
                 if hasattr(b, 'geometry'):
                     lon, lat = b.geometry.coordinates
-                # Obsługa słowników
                 else:
                     lon, lat = b["geometry"]["coordinates"]
                 
-                # Mapowanie na macierz
                 x = int((lon - min_lon) / (max_lon - min_lon) * w)
                 y = int((max_lat - lat) / (max_lat - min_lat) * h)
 
                 if 0 <= x < w and 0 <= y < h:
                     if mask[y, x]:
-                        # Oznaczamy zalanie w zależności od typu danych
                         if hasattr(b, 'properties'):
                             b.properties.is_flooded = True
                         else:
@@ -207,6 +190,5 @@ class FloodDetector:
     def check_buildings_flooding(self, buildings, mask, bbox):
         return []
 
-# Singleton
 flood_detector = FloodDetector()
 FloodPredictor = FloodDetector
