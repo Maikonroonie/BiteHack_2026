@@ -110,7 +110,10 @@ crisiseye/
 
 ![Predykcja AI](assets/2.png)
 
-![Predykcja AI](assets/3.png)
+![analiza_sar](assets/3.png)
+
+![raport](assets/4.png)
+
 
 
 
