@@ -107,3 +107,6 @@ crisiseye/
 ## Preview
 
 ![Logo Projektu](assets/1.png)
+
+![Predykcja AI](assets/2.png)
+
