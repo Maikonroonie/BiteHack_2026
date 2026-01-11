@@ -106,4 +106,4 @@ crisiseye/
 
 ## Preview
 
-![Logo Projektu][assets/1.png]
+![Logo Projektu](assets/1.png)
