@@ -116,42 +116,29 @@ function estimateFinancialLoss(
 
 // Funkcja do generowania raportu
 function generateReport(result: AnalysisResponse): string {
-  const { stats, buildings_affected, processing_time_seconds } = result;
+  const { stats, processing_time_seconds } = result;
   if (!stats) return "";
 
-  const losses = estimateFinancialLoss(
-    buildings_affected,
-    stats.flooded_area_km2
-  );
+  const losses = estimateFinancialLoss(0, stats.flooded_area_km2);
   const date = new Date().toLocaleDateString("pl-PL");
   const time = new Date().toLocaleTimeString("pl-PL");
 
   return `
 ╔══════════════════════════════════════════════════════════════╗
-║              RAPORT ANALIZY POWODZI - CrisisEye              ║
+║               RAPORT ANALIZY POWODZI - CrisisEye             ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ Data wygenerowania: ${date} ${time}
 ║ Czas przetwarzania: ${processing_time_seconds.toFixed(2)} sekund
 ╠══════════════════════════════════════════════════════════════╣
-║                    ZASIĘG POWODZI                            ║
+║                     ZASIĘG POWODZI                           ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ Analizowany obszar:     ${stats.area_km2.toFixed(2)} km²
 ║ Obszar zalany:          ${stats.flooded_area_km2.toFixed(2)} km²
 ║ Procent zalania:        ${stats.flood_percentage.toFixed(1)}%
 ║ Piksele zalane:         ${stats.flooded_pixels.toLocaleString()} / ${stats.total_pixels.toLocaleString()}
 ╠══════════════════════════════════════════════════════════════╣
-║                    STRATY MATERIALNE                         ║
+║                  SZACOWANE STRATY FINANSOWE                  ║
 ╠══════════════════════════════════════════════════════════════╣
-║ Budynki dotknięte:      ${buildings_affected}
-║   - Mieszkalne (~70%):  ${Math.floor(buildings_affected * 0.7)}
-║   - Komercyjne (~20%):  ${Math.floor(buildings_affected * 0.2)}
-║   - Przemysłowe (~10%): ${Math.floor(buildings_affected * 0.1)}
-╠══════════════════════════════════════════════════════════════╣
-║                 SZACOWANE STRATY FINANSOWE                   ║
-╠══════════════════════════════════════════════════════════════╣
-║ Szkody budynków:        ${(losses.buildingDamage / 1000000).toFixed(
-    2
-  )} mln PLN
 ║ Szkody infrastruktury:  ${(losses.infrastructureDamage / 1000000).toFixed(
     2
   )} mln PLN
@@ -161,24 +148,22 @@ function generateReport(result: AnalysisResponse): string {
 ║ ─────────────────────────────────────────────────────────────
 ║ RAZEM:                  ${(losses.totalLoss / 1000000).toFixed(2)} mln PLN
 ╠══════════════════════════════════════════════════════════════╣
-║                      REKOMENDACJE                            ║
+║                       REKOMENDACJE                           ║
 ╠══════════════════════════════════════════════════════════════╣
-║ ${
+║ POZIOM ZAGROŻENIA: ${
     stats.flood_percentage > 30
-      ? "⚠️  WYSOKI POZIOM ZAGROŻENIA - wymagana natychmiastowa ewakuacja"
+      ? "WYSOKI"
       : stats.flood_percentage > 15
-      ? "⚠️  ŚREDNI POZIOM ZAGROŻENIA - monitorować sytuację"
-      : "✓  NISKI POZIOM ZAGROŻENIA - standardowe procedury"
+      ? "ŚREDNI"
+      : "NISKI"
   }
 ║ 
 ║ Priorytetowe działania:
-║ 1. Ewakuacja ${Math.ceil(
-    buildings_affected * 0.3
-  )} budynków w strefie wysokiego ryzyka
-║ 2. Zabezpieczenie ${Math.ceil(stats.flooded_area_km2 * 0.5)} km dróg
-║ 3. Uruchomienie pomp o wydajności min. ${Math.ceil(
+║ 1. Zabezpieczenie ${Math.ceil(stats.flooded_area_km2 * 0.5)} km dróg
+║ 2. Uruchomienie pomp o wydajności min. ${Math.ceil(
     stats.flooded_area_km2 * 1000
   )} m³/h
+║ 3. Monitorowanie wałów przeciwpowodziowych w zalanym sektorze.
 ╚══════════════════════════════════════════════════════════════╝
 
 Wygenerowano przez CrisisEye 🛰️
@@ -291,15 +276,6 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
           subvalue="analizowanego terenu"
           color={stats.flood_percentage > 20 ? "red" : "yellow"}
           delay={0.3}
-        />
-
-        <StatCard
-          icon={<Building2 className="w-5 h-5" />}
-          label="Budynki zagrożone"
-          value={buildings_affected}
-          subvalue="obiektów"
-          color="red"
-          delay={0.4}
         />
       </div>
 
@@ -419,17 +395,6 @@ export function Dashboard({ result, isLoading }: DashboardProps) {
               : "✓ NISKI POZIOM ZAGROŻENIA"}
           </span>
         </div>
-        <p className="text-sm text-gray-300">
-          {stats.flood_percentage > 30
-            ? `Wymagana natychmiastowa ewakuacja ${Math.ceil(
-                buildings_affected * 0.5
-              )} budynków. Uruchomić procedury kryzysowe.`
-            : stats.flood_percentage > 15
-            ? `Monitorować sytuację. Przygotować ewakuację ${Math.ceil(
-                buildings_affected * 0.2
-              )} budynków w strefie ryzyka.`
-            : "Sytuacja pod kontrolą. Kontynuować standardowe procedury monitoringu."}
-        </p>
       </motion.div>
     </div>
   );
